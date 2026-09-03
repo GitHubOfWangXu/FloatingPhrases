@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-self-test:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj
+
+      - name: Build
+        run: dotnet build .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj -c Release --no-restore
+
+      - name: Run self-test
+        run: dotnet .\FloatingPhrases.SelfTest\bin\Release\net8.0-windows\FloatingPhrases.SelfTest.dll

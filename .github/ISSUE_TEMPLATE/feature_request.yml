@@ -1,0 +1,26 @@
+name: 功能建议
+description: 提议一个聚焦的改进
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景
+      description: 你遇到了什么问题？请避免只描述实现方案。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 描述期望行为以及可能的替代方案。
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 隐私边界
+      options:
+        - label: 建议不要求上传个人数据，也不要求绕过其他应用的权限。
+          required: true

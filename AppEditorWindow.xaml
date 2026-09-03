@@ -1,0 +1,51 @@
+<Window x:Class="FloatingPhrases.AppEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="编辑软件快捷入口"
+        Width="500"
+        Height="370"
+        MinWidth="440"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F7F8FC">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="名称" FontWeight="SemiBold" Foreground="#253047" />
+        <TextBox x:Name="NameBox" Grid.Row="1" Height="36" Margin="0,7,0,14" Padding="9,6"
+                 BorderBrush="#D8DDEA" ToolTip="留空时使用文件名" />
+
+        <TextBlock Grid.Row="2" Text="程序或快捷方式" FontWeight="SemiBold" Foreground="#253047" />
+        <Grid Grid.Row="3" Margin="0,7,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="76" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="PathBox" Height="36" Padding="9,6" BorderBrush="#D8DDEA" />
+            <Button Grid.Column="2" Content="选择…" Click="Browse_Click" />
+        </Grid>
+
+        <TextBlock Grid.Row="4" Text="分类" FontWeight="SemiBold" Foreground="#253047" />
+        <ComboBox x:Name="CategoryBox" Grid.Row="5" Height="36" Margin="0,7,0,14"
+                  VerticalContentAlignment="Center" />
+
+        <CheckBox x:Name="PinnedBox" Grid.Row="6" Content="置顶这个软件"
+                  VerticalAlignment="Top" Foreground="#253047" />
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="取消" Width="82" Height="34" Margin="0,0,10,0" Click="Cancel_Click" />
+            <Button Content="保存" Width="82" Height="34" Background="#4462E8" Foreground="White"
+                    BorderThickness="0" Click="Save_Click" />
+        </StackPanel>
+    </Grid>
+</Window>
