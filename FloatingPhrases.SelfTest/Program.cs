@@ -87,6 +87,18 @@ try
     var combinedSelection = SelectedTextReader.CombineSelections(["第一段", "", null, "第二段  "]);
     Require(combinedSelection == $"第一段{Environment.NewLine}第二段  ", "多段文本选区应按行合并并保留末尾空白");
 
+    var screenshotSelection = ScreenshotSelection.ToPixels(80, 60, 20, 10, 1.5, 2, 300, 200);
+    Require(
+        screenshotSelection == new ScreenshotRectangle(30, 20, 90, 100),
+        "反向拖拽的截图选区应正确换算为像素区域");
+    Require(
+        ScreenshotSelection.ToPixels(-10, -5, 500, 300, 1, 1, 320, 180)
+            == new ScreenshotRectangle(0, 0, 320, 180),
+        "截图选区应限制在屏幕图像范围内");
+    Require(
+        ScreenshotSelection.ToPixels(10, 10, 10, 40, 1, 1, 320, 180) is null,
+        "零宽度截图选区应被忽略");
+
     File.WriteAllText(settingsTestFile, "{broken json");
     var recoveredSettings = settingsStore.Load();
     Require(recoveredSettings.Mode == WindowMode.Floating, "损坏设置应恢复到安全的悬浮模式");
