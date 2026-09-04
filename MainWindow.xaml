@@ -129,6 +129,12 @@
                                VerticalAlignment="Center"
                                Foreground="#65708A"
                                FontSize="10" />
+                    <Button Content="截图"
+                            Width="42"
+                            Style="{StaticResource IconButton}"
+                            FontSize="11"
+                            ToolTip="框选屏幕区域并复制到剪贴板"
+                            Click="Screenshot_Click" />
                     <Button Content="＋" Style="{StaticResource IconButton}" FontSize="20" ToolTip="新增当前类型" Click="Add_Click" />
                     <Button Content="—" Style="{StaticResource IconButton}" FontSize="17" ToolTip="隐藏到托盘" Click="Hide_Click" />
                 </StackPanel>

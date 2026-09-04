@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -546,6 +547,66 @@ public partial class MainWindow : Window
         {
             SetStatus("剪贴板暂时被占用，请重试");
         }
+    }
+
+    private async void Screenshot_Click(object sender, RoutedEventArgs e)
+    {
+        var screenBounds = Forms.Screen.FromPoint(Forms.Cursor.Position).Bounds;
+        BitmapSource? screenshot = null;
+        string? resultStatus = null;
+        Exception? failure = null;
+
+        _idleFadeTimer.Stop();
+        Hide();
+
+        try
+        {
+            await Task.Delay(180);
+            screenshot = ScreenshotWindow.CaptureScreen(screenBounds);
+            var selector = new ScreenshotWindow(screenshot, screenBounds);
+
+            if (selector.ShowDialog() == true && selector.SelectedImage is not null)
+            {
+                try
+                {
+                    System.Windows.Clipboard.SetImage(selector.SelectedImage);
+                    resultStatus = $"截图已复制到剪贴板（{selector.SelectedImage.PixelWidth} × {selector.SelectedImage.PixelHeight}）";
+                }
+                catch (ExternalException)
+                {
+                    resultStatus = "截图已完成，但剪贴板暂时被占用，请重试";
+                }
+            }
+            else
+            {
+                resultStatus = "已取消截图";
+            }
+        }
+        catch (Exception ex) when (ex is ExternalException or InvalidOperationException or Win32Exception or ArgumentException)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            screenshot = null;
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+            ApplyWindowBehavior(IsMouseOver);
+        }
+
+        if (failure is not null)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                $"无法完成截图：{failure.Message}",
+                "Floating Phrases",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        SetStatus(resultStatus ?? "已取消截图");
     }
 
     private void CopySelectedText()
