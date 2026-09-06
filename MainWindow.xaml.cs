@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private readonly AppStore _appStore = new();
     private readonly SettingsStore _settingsStore = new();
     private readonly WindowBehavior _windowBehavior;
+    private readonly EdgeDockController _edgeDock;
     private readonly WindowSettings _settings;
     private readonly Forms.NotifyIcon _trayIcon;
     private readonly DispatcherTimer _statusTimer;
@@ -58,6 +59,8 @@ public partial class MainWindow : Window
 
         _windowBehavior = new WindowBehavior(this);
         _settings = _settingsStore.Load();
+        _edgeDock = new EdgeDockController(this, MainPanel, EdgeHandle, () => ApplyWindowBehavior(IsMouseOver));
+        _edgeDock.SetEnabled(_settings.Mode == WindowMode.Floating);
         _phrases = new ObservableCollection<Phrase>(_phraseStore.Load());
         _feishuCaptures = new ObservableCollection<Phrase>(_feishuCaptureStore.Load());
         _folders = new ObservableCollection<FolderShortcut>(_folderStore.Load());
@@ -182,6 +185,15 @@ public partial class MainWindow : Window
 
     private void ToggleVisibility()
     {
+        if (_edgeDock.IsCollapsed)
+        {
+            _edgeDock.Expand();
+            Show();
+            Activate();
+            FocusCurrentSearch();
+            return;
+        }
+
         if (IsVisible)
         {
             _idleFadeTimer.Stop();
@@ -281,6 +293,7 @@ public partial class MainWindow : Window
 
     private void AddPhrase()
     {
+        _edgeDock.Expand();
         MainTabs.SelectedIndex = 0;
         var editor = new PhraseEditorWindow { Owner = this };
         if (editor.ShowDialog() != true)
@@ -300,6 +313,7 @@ public partial class MainWindow : Window
 
     private void AddFolder()
     {
+        _edgeDock.Expand();
         MainTabs.SelectedIndex = 1;
         var editor = new FolderEditorWindow { Owner = this };
         if (editor.ShowDialog() != true)
@@ -318,6 +332,7 @@ public partial class MainWindow : Window
 
     private void AddApp()
     {
+        _edgeDock.Expand();
         MainTabs.SelectedIndex = 2;
         var editor = new AppEditorWindow { Owner = this };
         if (editor.ShowDialog() != true)
@@ -986,6 +1001,7 @@ public partial class MainWindow : Window
     private void SetWindowMode(WindowMode mode)
     {
         _settings.Mode = mode;
+        _edgeDock.SetEnabled(mode == WindowMode.Floating);
         if (ModeBox.SelectedIndex != (int)mode)
         {
             _initializingSettings = true;
@@ -1012,6 +1028,7 @@ public partial class MainWindow : Window
     private void RestoreInteractiveMode()
     {
         SetWindowMode(WindowMode.Floating);
+        _edgeDock.Expand();
         if (!IsVisible)
         {
             Show();
@@ -1023,7 +1040,7 @@ public partial class MainWindow : Window
     private void ApplyWindowBehavior(bool pointerInside)
     {
         OpacitySlider.IsEnabled = _settings.Mode != WindowMode.Normal;
-        _windowBehavior.Apply(_settings.Mode, _settings.IdleOpacity, pointerInside);
+        _windowBehavior.Apply(_settings.Mode, _settings.IdleOpacity, pointerInside || _edgeDock.IsCollapsed);
     }
 
     private void UpdateOpacityLabel() =>
@@ -1051,7 +1068,9 @@ public partial class MainWindow : Window
     {
         if (e.LeftButton == MouseButtonState.Pressed)
         {
-            DragMove();
+            _edgeDock.BeginDrag();
+            try { DragMove(); }
+            finally { _edgeDock.EndDrag(); }
         }
     }
 
@@ -1084,6 +1103,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _edgeDock.Dispose();
         if (_source is not null)
         {
             var handle = new WindowInteropHelper(this).Handle;

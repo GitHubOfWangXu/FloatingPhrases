@@ -99,6 +99,39 @@ try
         ScreenshotSelection.ToPixels(10, 10, 10, 40, 1, 1, 320, 180) is null,
         "零宽度截图选区应被忽略");
 
+    var area = new DockBounds(0, 0, 1920, 1040);
+    Require(EdgeDockLayout.Detect(new(12, 200, 430, 650), area, 16) == DockEdge.Left,
+        "靠近左侧工作区边缘应触发贴边");
+    Require(EdgeDockLayout.Detect(new(1480, 200, 430, 650), area, 16) == DockEdge.Right,
+        "靠近右侧工作区边缘应触发贴边");
+    Require(EdgeDockLayout.Detect(new(600, -5, 430, 650), area, 16) == DockEdge.Top,
+        "轻微越过上边缘也应触发贴边");
+    Require(EdgeDockLayout.Detect(new(17, 200, 430, 650), area, 16) == DockEdge.None,
+        "拖离吸附阈值应取消贴边");
+    Require(EdgeDockLayout.Detect(new(600, 390, 430, 650), area, 16) == DockEdge.None,
+        "底边不应触发收缩，以免干扰任务栏");
+    Require(EdgeDockLayout.Detect(new(10, 2, 430, 650), area, 16) == DockEdge.Top,
+        "角落应选择距离最近的边缘");
+    var leftMonitor = new DockBounds(-1920, -200, 1920, 1040);
+    var docked = EdgeDockLayout.Snap(new(-440, 500, 430, 650), leftMonitor, DockEdge.Right);
+    Require(docked == new DockBounds(-430, 190, 430, 650),
+        "负坐标副屏应贴合自身右边缘，并避开工作区底部");
+    var handle = EdgeDockLayout.Handle(docked, leftMonitor, DockEdge.Right, 1.5);
+    Require(handle.Width == 15 && handle.Height == 96 && handle.Right == 0,
+        "150% 缩放下侧边签应为 15×96 像素，且不伸入相邻屏幕");
+    Require(handle.Y >= leftMonitor.Y && handle.Bottom <= leftMonitor.Bottom,
+        "边签必须保持在工作区内");
+    Require(!handle.Contains(docked.X + 10, docked.Y + 10),
+        "收缩后的矩形不能继续覆盖原面板内部");
+    var topHandle = EdgeDockLayout.Handle(new(600, 0, 430, 650), area, DockEdge.Top, 2);
+    Require(topHandle.Width == 128 && topHandle.Height == 20 && topHandle.Y == 0,
+        "顶部边签应横向显示并适配 200% 缩放");
+    Require(EdgeDockLayout.Snap(new(500, 500, 430, 650), new(0, 0, 320, 240), DockEdge.Left).Y == 0,
+        "工作区小于窗口时应保留标题栏可达，不能抛出钳位异常");
+    var taskbarArea = new DockBounds(48, 40, 1872, 1000);
+    Require(EdgeDockLayout.Snap(new(50, 20, 430, 650), taskbarArea, DockEdge.Left).X == 48,
+        "吸附应使用工作区，避开左侧任务栏");
+
     File.WriteAllText(settingsTestFile, "{broken json");
     var recoveredSettings = settingsStore.Load();
     Require(recoveredSettings.Mode == WindowMode.Floating, "损坏设置应恢复到安全的悬浮模式");
