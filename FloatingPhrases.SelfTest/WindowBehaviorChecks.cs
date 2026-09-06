@@ -20,6 +20,8 @@ internal static class WindowBehaviorChecks
                     AllowsTransparency = true, ShowInTaskbar = false, ShowActivated = false
                 };
                 var behavior = new WindowBehavior(window);
+                window.WindowState = WindowState.Maximized;
+                Check(window.WindowState == WindowState.Normal, "创建句柄前也应阻止最大化状态");
                 var hwnd = new WindowInteropHelper(window).EnsureHandle();
                 behavior.Attach(hwnd);
                 const int resizeFrame = 0x00040000;
