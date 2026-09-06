@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 
@@ -18,11 +19,16 @@ public sealed class WindowBehavior
         // DragMove uses the shell move loop. A resizable HWND opts into Aero Snap,
         // which competes with our own edge docking when released at the top.
         window.ResizeMode = ResizeMode.CanMinimize;
-        window.StateChanged += (_, _) =>
+        // StateChanged depends on native window notifications and is not reliable
+        // for a hidden HWND. Observe the WPF property itself, even before Show().
+        var stateProperty = DependencyPropertyDescriptor.FromProperty(Window.WindowStateProperty, typeof(Window));
+        EventHandler restoreNormalState = (_, _) =>
         {
             if (window.WindowState == WindowState.Maximized)
                 window.WindowState = WindowState.Normal;
         };
+        stateProperty.AddValueChanged(window, restoreNormalState);
+        window.Closed += (_, _) => stateProperty.RemoveValueChanged(window, restoreNormalState);
     }
 
     public void Attach(IntPtr handle) => _handle = handle;
