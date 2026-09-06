@@ -68,7 +68,7 @@ internal sealed class EdgeDockController : IDisposable
     public void EndDrag()
     {
         _dragging = false;
-        if (!_enabled || !TryBounds(out var bounds)) return;
+        if (!_enabled || _window.WindowState != WindowState.Normal || !TryBounds(out var bounds)) return;
         _workArea = WorkArea();
         _edge = EdgeDockLayout.Detect(bounds, _workArea, 16 * Scale);
         if (_edge != DockEdge.None)
@@ -113,7 +113,8 @@ internal sealed class EdgeDockController : IDisposable
 
     private void Tick(object? sender, EventArgs e)
     {
-        if (_dragging || !_window.IsVisible || _edge == DockEdge.None || !TryBounds(out var bounds)) return;
+        if (_dragging || !_window.IsVisible || _window.WindowState != WindowState.Normal ||
+            _edge == DockEdge.None || !TryBounds(out var bounds)) return;
         // Native disabled state covers both WPF dialogs and native MessageBox loops.
         if (!IsWindowEnabled(Hwnd) || Mouse.Captured is not null ||
             Forms.Control.MouseButtons != Forms.MouseButtons.None ||

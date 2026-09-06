@@ -145,6 +145,7 @@ try
     Require(appStore.Load().Count == 0, "损坏的软件数据应恢复为空列表");
     Require(Directory.EnumerateFiles(testDirectory, "apps.corrupt-*.json").Any(), "损坏的软件数据文件应被保留");
 
+    WindowBehaviorChecks.Run();
     Console.WriteLine($"FloatingPhrases self-test passed. Desktop apps found: {desktopApps.Count}.");
     return 0;
 }
