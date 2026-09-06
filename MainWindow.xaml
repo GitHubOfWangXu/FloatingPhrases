@@ -7,6 +7,7 @@
         MinWidth="370"
         MinHeight="450"
         WindowStyle="None"
+        ResizeMode="CanMinimize"
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="True"

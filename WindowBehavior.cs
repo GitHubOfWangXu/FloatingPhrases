@@ -3,21 +3,35 @@ using System.Windows;
 
 namespace FloatingPhrases;
 
-public sealed class WindowBehavior(Window window)
+public sealed class WindowBehavior
 {
     private const int GwlExStyle = -20;
     private const int WsExTransparent = 0x00000020;
     private const int WsExLayered = 0x00080000;
 
     private IntPtr _handle;
+    private readonly Window _window;
+
+    public WindowBehavior(Window window)
+    {
+        _window = window;
+        // DragMove uses the shell move loop. A resizable HWND opts into Aero Snap,
+        // which competes with our own edge docking when released at the top.
+        window.ResizeMode = ResizeMode.CanMinimize;
+        window.StateChanged += (_, _) =>
+        {
+            if (window.WindowState == WindowState.Maximized)
+                window.WindowState = WindowState.Normal;
+        };
+    }
 
     public void Attach(IntPtr handle) => _handle = handle;
 
     public void Apply(WindowMode mode, double idleOpacity, bool pointerInside)
     {
         SetClickThrough(mode == WindowMode.ClickThrough);
-        window.Topmost = mode != WindowMode.Normal;
-        window.Opacity = mode switch
+        _window.Topmost = mode != WindowMode.Normal;
+        _window.Opacity = mode switch
         {
             WindowMode.Normal => 1,
             WindowMode.Floating when pointerInside => 1,
