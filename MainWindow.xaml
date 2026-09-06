@@ -80,7 +80,13 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#F8F9FD"
+    <Grid>
+    <Border x:Name="EdgeHandle" Visibility="Collapsed" Background="#4462E8"
+            CornerRadius="5" Cursor="Hand" ToolTip="悬停或点击展开；展开后拖动标题栏离开边缘可取消收起"
+            AutomationProperties.Name="展开 Floating Phrases">
+        <TextBlock Text="•" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Border>
+    <Border x:Name="MainPanel" Background="#F8F9FD"
             BorderBrush="#D9DEEB"
             BorderThickness="1"
             CornerRadius="18"
@@ -466,4 +472,5 @@
             </Border>
         </Grid>
     </Border>
+    </Grid>
 </Window>
