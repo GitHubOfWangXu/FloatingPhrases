@@ -10,12 +10,13 @@ using FloatingPhrases;
 // Explicit opt-in desktop check. Only generic fixture content is displayed/captured.
 internal static class DockVisualChecks
 {
-    public static void RunApp()
+    public static void RunApp(string? selectedTab = null)
     {
         var thread = new Thread(() =>
         {
             var app = new System.Windows.Application();
             var window = new MainWindow { ShowInTaskbar = true };
+            if (selectedTab is not null) ((TabItem)window.FindName(selectedTab)).IsSelected = true;
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(90) };
             timer.Tick += (_, _) =>
             {

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/GitHubOfWangXu/FloatingPhrases/actions/workflows/ci.yml/badge.svg)](https://github.com/GitHubOfWangXu/FloatingPhrases/actions/workflows/ci.yml)
 
-一个 Windows 悬浮工具，用三个 Tab 管理常用句子、本地文件夹和本地软件快捷入口。程序完全在本机运行，不需要账号或网络服务。
+一个 Windows 悬浮工具，用四个 Tab 管理常用句子、本地文件夹、本地软件快捷入口和待办清单。程序完全在本机运行，不需要账号或网络服务。
 
 ## 系统要求
 
@@ -83,7 +83,7 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 
 - 模式下拉框：在普通、悬浮、穿透三种模式之间切换。
 - 透明度滑块：设置悬浮闲置或穿透时的透明度，可调范围为 20%–90%。
-- “＋”：根据当前 Tab 新增短语、文件夹或软件。
+- “＋”：根据当前 Tab 新增短语、文件夹、软件或输入待办；托盘菜单也提供“新增待办”入口。
 - “截图”：框选当前屏幕区域，并将截图复制到剪贴板。
 - “—”：隐藏到系统托盘。
 
@@ -115,6 +115,14 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 
 窗口底栏和贴边小块每 2 秒刷新系统物理内存占用百分比；悬停提示显示已用和总量（GiB）。占用按“总物理内存减去可用物理内存”计算，读取失败时显示 `--`。隐藏到托盘后暂停刷新，再次显示时立即更新。此功能只读取本机 Windows 内存状态，无需管理员权限，不写入数据文件。
 
+### 待办清单
+
+- 在“待办清单”输入内容后点击“添加”或按 Enter；点击“改”可编辑，取消按钮或 Escape 可放弃编辑。
+- 勾选即完成，再次点击可恢复未完成；已完成项显示删除线并排在后面。
+- 支持内容搜索以及全部、未完成、已完成筛选，底部显示完成数量。
+- 点击“删”后可用“撤销删除”恢复最近删除的一项；撤销记录仅在本次运行有效。
+- 每次成功修改立即保存到独立的 `todos.json`，重启后保留；保存失败会保留原列表及当前输入并提示错误。
+
 ## 配置和数据位置
 
 所有用户数据保存在：
@@ -136,6 +144,8 @@ C:\Users\你的用户名\AppData\Roaming\FloatingPhrases
 | `folders.json` | 文件夹快捷入口 |
 | `settings.json` | 窗口模式和闲置透明度 |
 | `apps.json` | 本地软件快捷入口、分类和顺序 |
+| `todos.json` | 待办内容和完成状态 |
+| `todos.json.bak` | 上一次保存前的待办备份 |
 | `phrases.json.bak` | 上一次保存前的短语备份 |
 | `feishu-captures.json.bak` | 上一次保存前的飞书复制历史备份 |
 | `folders.json.bak` | 上一次保存前的文件夹备份 |
@@ -166,6 +176,8 @@ dotnet run --project .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj 
 ```
 
 自检覆盖短语、文件夹、软件入口和窗口设置的保存读取，软件分类归一化、透明度安全范围、拖动顺序、置顶状态、损坏 JSON 备份恢复，以及多行短语的空白字符保留。
+
+待办自检使用临时目录和真实控件事件，覆盖新增、编辑与取消、完成与恢复、搜索筛选、删除与撤销、重新加载，以及保存失败时的界面一致性和损坏文件恢复。
 
 贴边回归还检查完整过渡的窗口尺寸、原生裁剪和点击区域。可在桌面空闲时运行可见录帧验收（将 `Right` 替换为 `Left` 或 `Top` 检查其他方向）：
 

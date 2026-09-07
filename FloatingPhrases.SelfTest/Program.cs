@@ -1,8 +1,8 @@
 using FloatingPhrases;
 
-if (args.Length == 1 && args[0] == "--app-visual")
+if (args.Length == 1 && args[0] is "--app-visual" or "--todo-app-visual")
 {
-    DockVisualChecks.RunApp();
+    DockVisualChecks.RunApp(args[0] == "--todo-app-visual" ? "TodoTab" : null);
     return 0;
 }
 
@@ -21,6 +21,8 @@ var captureTestFile = Path.Combine(testDirectory, "feishu-captures.json");
 
 try
 {
+    Directory.CreateDirectory(testDirectory);
+    TodoChecks.Run(testDirectory, args.Length == 2 && args[0] == "--todo-screenshot" ? Path.GetFullPath(args[1]) : null);
     var memory = new MemoryUsage(16UL * 1073741824, 4UL * 1073741824);
     Require(memory.UsedBytes == 12UL * 1073741824 && memory.UsedPercent == 75,
         "系统内存应按总量减去可用量计算，不能误用本进程内存");

@@ -144,6 +144,7 @@ public partial class MainWindow : Window
         menu.Items.Add("新增短语", null, (_, _) => Dispatcher.Invoke(AddPhrase));
         menu.Items.Add("新增文件夹", null, (_, _) => Dispatcher.Invoke(AddFolder));
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
+        menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
         menu.Items.Add(new Forms.ToolStripSeparator());
         var modes = new Forms.ToolStripMenuItem("窗口模式");
         modes.DropDownItems.Add("普通", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Normal)));
@@ -234,7 +235,11 @@ public partial class MainWindow : Window
 
     private void FocusCurrentSearch()
     {
-        if (MainTabs.SelectedIndex == 3)
+        if (TodoTab.IsSelected)
+        {
+            TodoView.FocusInput();
+        }
+        else if (MainTabs.SelectedIndex == 3)
         {
             FeishuCaptureSearchBox.Focus();
         }
@@ -376,7 +381,11 @@ public partial class MainWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        if (MainTabs.SelectedIndex == 3)
+        if (TodoTab.IsSelected)
+        {
+            ShowTodoInput();
+        }
+        else if (MainTabs.SelectedIndex == 3)
         {
             CaptureFeishuSelectionFromButton();
         }
@@ -395,6 +404,16 @@ public partial class MainWindow : Window
     }
 
     private void AddPhrase_Click(object sender, RoutedEventArgs e) => AddPhrase();
+
+    private void ShowTodoInput()
+    {
+        if (_settings.Mode == WindowMode.ClickThrough) SetWindowMode(WindowMode.Floating);
+        _edgeDock.Expand();
+        Show();
+        Activate();
+        MainTabs.SelectedItem = TodoTab;
+        Dispatcher.BeginInvoke(new Action(TodoView.FocusInput), DispatcherPriority.Input);
+    }
     private void AddFolder_Click(object sender, RoutedEventArgs e) => AddFolder();
     private void AddApp_Click(object sender, RoutedEventArgs e) => AddApp();
 
