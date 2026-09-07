@@ -1,5 +1,17 @@
 using FloatingPhrases;
 
+if (args.Length == 1 && args[0] == "--app-visual")
+{
+    DockVisualChecks.RunApp();
+    return 0;
+}
+
+if (args.Length is 2 or 3 && args[0] == "--dock-visual")
+{
+    DockVisualChecks.Run(args[1], args.Length == 3 ? Enum.Parse<DockEdge>(args[2], true) : DockEdge.Left);
+    return 0;
+}
+
 var testDirectory = Path.Combine(Path.GetTempPath(), $"FloatingPhrases-{Guid.NewGuid():N}");
 var testFile = Path.Combine(testDirectory, "phrases.json");
 var folderTestFile = Path.Combine(testDirectory, "folders.json");

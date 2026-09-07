@@ -8,7 +8,8 @@ using Forms = System.Windows.Forms;
 
 namespace FloatingPhrases;
 
-// Shrinks the actual HWND: the hidden panel must not intercept desktop input.
+// Keeps the layered HWND stable. A native region limits both drawing and input
+// to the handle when collapsed, without reallocating WPF's window surface.
 internal sealed class EdgeDockController : IDisposable
 {
     private readonly Window _window;
@@ -18,12 +19,9 @@ internal sealed class EdgeDockController : IDisposable
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _animationTimer;
     private readonly TranslateTransform _panelOffset = new();
-    private DockBounds _animationTo;
     private long _animationStarted;
     public bool IsAnimating => _animationTimer.IsEnabled;
     public bool IsDocked => _edge != DockEdge.None;
-    private readonly double _minWidth;
-    private readonly double _minHeight;
     private DockBounds _expanded;
     private DockBounds _workArea;
     private DockEdge _edge;
@@ -40,8 +38,6 @@ internal sealed class EdgeDockController : IDisposable
         _panel = panel;
         _handleView = handleView;
         _refreshBehavior = refreshBehavior;
-        _minWidth = window.MinWidth;
-        _minHeight = window.MinHeight;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _timer.Tick += Tick;
         _animationTimer = new DispatcherTimer(DispatcherPriority.Render)
@@ -96,19 +92,16 @@ internal sealed class EdgeDockController : IDisposable
     {
         if (IsAnimating) FinishAnimation();
         if (!IsCollapsed) return;
-        // Resolve the monitor while the small handle still lies entirely on it.
-        // Restoring minimum size first can temporarily extend into a neighboring monitor.
         _workArea = WorkArea();
         IsCollapsed = false;
         _expanded = EdgeDockLayout.Snap(_expanded, _workArea, _edge);
         if (animate)
         {
-            StartAnimation(_expanded);
+            StartAnimation();
             return;
         }
+        SetWindowRgn(Hwnd, IntPtr.Zero, true);
         _handleView.Visibility = Visibility.Collapsed;
-        _window.MinWidth = _minWidth;
-        _window.MinHeight = _minHeight;
         _expanded = EdgeDockLayout.Snap(_expanded, _workArea, _edge);
         Move(_expanded);
         _panel.Visibility = Visibility.Visible;
@@ -121,21 +114,12 @@ internal sealed class EdgeDockController : IDisposable
     {
         _expanded = EdgeDockLayout.Snap(bounds, _workArea, _edge);
         IsCollapsed = true;
-        StartAnimation(EdgeDockLayout.Handle(_expanded, _workArea, _edge, Scale));
+        StartAnimation();
     }
 
-    private void StartAnimation(DockBounds to)
+    private void StartAnimation()
     {
-        _animationTo = to;
         _animationStarted = Environment.TickCount64;
-        _window.MinWidth = 0;
-        _window.MinHeight = 0;
-        // The native window stays full-sized throughout the fade. Resizing a
-        // layered HWND every frame competes with WPF layout/DPI updates and jitters.
-        _panel.Width = _expanded.Width / Scale;
-        _panel.Height = _expanded.Height / Scale;
-        _panel.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
-        _panel.VerticalAlignment = VerticalAlignment.Top;
         _panel.RenderTransform = _panelOffset;
         _panel.Visibility = Visibility.Visible;
         _handleView.Visibility = Visibility.Visible;
@@ -152,9 +136,9 @@ internal sealed class EdgeDockController : IDisposable
         ResetDelays();
         _refreshBehavior();
         ApplyAnimation(0);
-        // Expansion allocates its final HWND once, with the panel still invisible.
-        // Collapse keeps the current HWND until the panel has completely faded.
-        if (!IsCollapsed) Move(to);
+        // Reveal the full region only after the expansion's initial transparent
+        // state is prepared; keep the same HWND bounds even at the endpoints.
+        if (!IsCollapsed) SetWindowRgn(Hwnd, IntPtr.Zero, true);
     }
 
     private void AnimationTick(object? sender, EventArgs e)
@@ -166,7 +150,7 @@ internal sealed class EdgeDockController : IDisposable
 
     private void ApplyAnimation(double progress)
     {
-        var eased = 1 - Math.Pow(1 - progress, 3);
+        var eased = progress * progress * (3 - 2 * progress);
         _panel.Opacity = IsCollapsed ? 1 - eased : eased;
         var offset = 12 * (1 - _panel.Opacity);
         _panelOffset.X = _edge == DockEdge.Left ? -offset : _edge == DockEdge.Right ? offset : 0;
@@ -179,27 +163,32 @@ internal sealed class EdgeDockController : IDisposable
         _animationTimer.Stop();
         _panel.Visibility = IsCollapsed ? Visibility.Collapsed : Visibility.Visible;
         _handleView.Visibility = IsCollapsed ? Visibility.Visible : Visibility.Collapsed;
-        _handleView.ClearValue(FrameworkElement.WidthProperty);
-        _handleView.ClearValue(FrameworkElement.HeightProperty);
-        _handleView.ClearValue(FrameworkElement.HorizontalAlignmentProperty);
-        _handleView.ClearValue(FrameworkElement.VerticalAlignmentProperty);
-        _handleView.ClearValue(FrameworkElement.MarginProperty);
-        if (IsCollapsed) Move(_animationTo);
-        _panel.ClearValue(FrameworkElement.WidthProperty);
-        _panel.ClearValue(FrameworkElement.HeightProperty);
-        _panel.ClearValue(FrameworkElement.HorizontalAlignmentProperty);
-        _panel.ClearValue(FrameworkElement.VerticalAlignmentProperty);
         _panel.RenderTransform = Transform.Identity;
         _panel.Opacity = _handleView.Opacity = 1;
         _panel.IsHitTestVisible = _handleView.IsHitTestVisible = true;
-        if (!IsCollapsed)
+        if (IsCollapsed && !ClipToHandle())
         {
-            _window.MinWidth = _minWidth;
-            _window.MinHeight = _minHeight;
+            // If native clipping fails, retain an operable full panel.
+            IsCollapsed = false;
+            _edge = DockEdge.None;
+            _panel.Visibility = Visibility.Visible;
+            _handleView.Visibility = Visibility.Collapsed;
         }
         ResetDelays();
         _lastInput = Environment.TickCount64;
         _refreshBehavior();
+    }
+
+    private bool ClipToHandle()
+    {
+        var handle = EdgeDockLayout.Handle(_expanded, _workArea, _edge, Scale);
+        var region = CreateRectRgn((int)Math.Round(handle.X - _expanded.X),
+            (int)Math.Round(handle.Y - _expanded.Y), (int)Math.Round(handle.Right - _expanded.X),
+            (int)Math.Round(handle.Bottom - _expanded.Y));
+        if (region == IntPtr.Zero) return false;
+        if (SetWindowRgn(Hwnd, region, true) != 0) return true; // Windows owns region on success.
+        DeleteObject(region);
+        return false;
     }
 
     private void Tick(object? sender, EventArgs e)
@@ -225,6 +214,7 @@ internal sealed class EdgeDockController : IDisposable
             return;
         }
 
+        if (IsCollapsed) bounds = EdgeDockLayout.Handle(_expanded, _workArea, _edge, Scale);
         var pointer = Forms.Cursor.Position;
         var inside = bounds.Contains(pointer.X, pointer.Y);
         var now = Environment.TickCount64;
@@ -296,7 +286,16 @@ internal sealed class EdgeDockController : IDisposable
         _window.IsVisibleChanged -= VisibilityChanged;
         _window.PreviewKeyDown -= KeyDown;
         _handleView.MouseLeftButtonDown -= HandleClick;
+        if (Hwnd != IntPtr.Zero) SetWindowRgn(Hwnd, IntPtr.Zero, false);
     }
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr handle);
+    [DllImport("user32.dll")]
+    private static extern int SetWindowRgn(IntPtr hwnd, IntPtr region, [MarshalAs(UnmanagedType.Bool)] bool redraw);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRect { public int Left, Top, Right, Bottom; }

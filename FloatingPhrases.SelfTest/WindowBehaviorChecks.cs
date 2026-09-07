@@ -79,9 +79,23 @@ internal static class WindowBehaviorChecks
         Check(Math.Abs(window.Width - 430) < 0.01 && panel.Opacity > 0 && panel.Opacity < 1,
             "收起中间帧必须保持原生窗口尺寸稳定，仅过渡内容，避免窗口抖动");
         type.GetMethod("FinishAnimation", flags)!.Invoke(controller, null);
+        Check(Math.Abs(window.Width - 430) < 0.01 && Math.Abs(window.Height - 650) < 0.01,
+            "收起结束也不能切换原生窗口尺寸，否则最终帧仍会闪烁");
         Check(panel.Visibility == Visibility.Collapsed && handle.Visibility == Visibility.Visible,
             "收起结束后仅小块可见");
+        var region = CreateRectRgn(0, 0, 0, 0);
+        try
+        {
+            Check(GetWindowRgn(new WindowInteropHelper(window).Handle, region) == 2,
+                "收起后必须有原生矩形裁剪，不能让透明面板挡住桌面点击");
+            Check(PtInRegion(region, (int)(handle.Margin.Left * scale + 3), (int)(handle.Margin.Top * scale + 3)) &&
+                !PtInRegion(region, 10, 10), "仅边签区域应保留原生窗口命中范围");
+        }
+        finally { DeleteObject(region); }
         type.GetMethod("Expand")!.Invoke(controller, [true]);
+        region = CreateRectRgn(0, 0, 0, 0);
+        try { Check(GetWindowRgn(new WindowInteropHelper(window).Handle, region) == 0, "展开后必须解除原生裁剪"); }
+        finally { DeleteObject(region); }
         CheckStableFrames();
         type.GetMethod("ApplyAnimation", flags)!.Invoke(controller, [0.5]);
         Check(Math.Abs(window.Width - 430) < 0.01, "展开中间帧必须保持完整窗口尺寸稳定");
@@ -109,6 +123,17 @@ internal static class WindowBehaviorChecks
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr region);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PtInRegion(IntPtr region, int x, int y);
+    [DllImport("user32.dll")]
+    private static extern int GetWindowRgn(IntPtr hwnd, IntPtr region);
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
     private static extern int GetWindowLong(IntPtr hwnd, int index);
