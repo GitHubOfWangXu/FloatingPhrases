@@ -74,20 +74,41 @@ internal static class WindowBehaviorChecks
         type.GetMethod("Collapse", flags)!.Invoke(controller, [new DockBounds(1920 - 430 * scale, 100, 430 * scale, 650 * scale)]);
         Check(Math.Abs(window.Width - 430) < 0.01 && panel.Visibility == Visibility.Visible,
             "收起开始不能立即跳到小块，必须保留面板并逐步过渡");
+        CheckStableFrames();
         type.GetMethod("ApplyAnimation", flags)!.Invoke(controller, [0.5]);
-        Check(window.Width > 44 && window.Width < 430 && panel.Opacity > 0 && panel.Opacity < 1,
-            "中间帧必须同时具有中间尺寸和过渡透明度");
+        Check(Math.Abs(window.Width - 430) < 0.01 && panel.Opacity > 0 && panel.Opacity < 1,
+            "收起中间帧必须保持原生窗口尺寸稳定，仅过渡内容，避免窗口抖动");
         type.GetMethod("FinishAnimation", flags)!.Invoke(controller, null);
         Check(panel.Visibility == Visibility.Collapsed && handle.Visibility == Visibility.Visible,
             "收起结束后仅小块可见");
         type.GetMethod("Expand")!.Invoke(controller, [true]);
+        CheckStableFrames();
         type.GetMethod("ApplyAnimation", flags)!.Invoke(controller, [0.5]);
-        Check(window.Width > 44 && window.Width < 430, "展开也必须经过中间尺寸");
+        Check(Math.Abs(window.Width - 430) < 0.01, "展开中间帧必须保持完整窗口尺寸稳定");
         type.GetMethod("BeginDrag")!.Invoke(controller, null);
         Check(Math.Abs(window.Width - 430) < 0.01 && Math.Abs(window.Height - 650) < 0.01 && panel.IsHitTestVisible &&
             double.IsNaN(panel.Width) && panel.Opacity == 1,
             "动画被拖动打断时应恢复完整尺寸、自动布局和交互");
+
+        void CheckStableFrames()
+        {
+            var hwnd = new WindowInteropHelper(window).Handle;
+            Check(GetWindowRect(hwnd, out var initial), "应能读取动画窗口矩形");
+            foreach (var progress in new[] { 0.1, 0.3, 0.6, 0.9 })
+            {
+                type.GetMethod("ApplyAnimation", flags)!.Invoke(controller, [progress]);
+                Check(GetWindowRect(hwnd, out var current) && current.Equals(initial),
+                    "动画中间帧不得改写原生窗口位置或尺寸");
+            }
+        }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect { public int Left, Top, Right, Bottom; }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
     private static extern int GetWindowLong(IntPtr hwnd, int index);
