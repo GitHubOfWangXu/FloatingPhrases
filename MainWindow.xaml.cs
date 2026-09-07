@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _statusTimer;
     private readonly DispatcherTimer _idleFadeTimer;
     private readonly DispatcherTimer _settingsSaveTimer;
+    private readonly DispatcherTimer _memoryTimer;
     private HwndSource? _source;
     private object? _dragCandidate;
     private System.Windows.Point _dragStart;
@@ -108,9 +109,32 @@ public partial class MainWindow : Window
         };
         _trayIcon.DoubleClick += (_, _) => ToggleVisibility();
 
+        _memoryTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _memoryTimer.Tick += (_, _) => RefreshMemory();
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible)
+            {
+                RefreshMemory();
+                _memoryTimer.Start();
+            }
+            else _memoryTimer.Stop();
+        };
+        RefreshMemory();
+
         SourceInitialized += MainWindow_SourceInitialized;
         Loaded += MainWindow_Loaded;
         ApplyWindowBehavior(false);
+    }
+
+    private void RefreshMemory()
+    {
+        var usage = SystemMemory.Read();
+        MemoryText.Text = usage?.Summary ?? "内存 --";
+        EdgeMemoryText.Text = usage is { } value ? $"{value.UsedPercent:0}%" : "--";
+        var details = usage?.Details ?? "暂时无法读取系统内存";
+        MemoryText.ToolTip = details;
+        EdgeHandle.ToolTip = $"{details}\n悬停或点击展开；展开后拖动标题栏离开边缘可取消收起";
     }
 
     private Forms.ContextMenuStrip CreateTrayMenu()
@@ -1103,6 +1127,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _memoryTimer.Stop();
         _edgeDock.Dispose();
         if (_source is not null)
         {

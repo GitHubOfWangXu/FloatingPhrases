@@ -38,8 +38,8 @@ public static class EdgeDockLayout
     public static DockBounds Handle(DockBounds expanded, DockBounds area, DockEdge edge, double scale)
     {
         var horizontal = edge == DockEdge.Top;
-        var width = (horizontal ? 64 : 10) * scale;
-        var height = (horizontal ? 10 : 64) * scale;
+        var width = (horizontal ? 64 : 44) * scale;
+        var height = (horizontal ? 40 : 64) * scale;
         return Snap(new DockBounds(
             expanded.X + (expanded.Width - width) / 2,
             expanded.Y + (expanded.Height - height) / 2, width, height), area, edge);

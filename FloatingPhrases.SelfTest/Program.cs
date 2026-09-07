@@ -9,6 +9,14 @@ var captureTestFile = Path.Combine(testDirectory, "feishu-captures.json");
 
 try
 {
+    var memory = new MemoryUsage(16UL * 1073741824, 4UL * 1073741824);
+    Require(memory.UsedBytes == 12UL * 1073741824 && memory.UsedPercent == 75,
+        "系统内存应按总量减去可用量计算，不能误用本进程内存");
+    Require(new MemoryUsage(0, 0).UsedPercent == 0, "零总量不能产生无效百分比");
+    Require(new MemoryUsage(1, 2).UsedBytes == 0, "异常可用量不能导致无符号下溢");
+    var liveMemory = SystemMemory.Read();
+    Require(liveMemory is { TotalBytes: > 0 } && liveMemory.Value.AvailableBytes <= liveMemory.Value.TotalBytes,
+        "Windows 内存 API 应返回有效的物理内存快照");
     var store = new PhraseStore(testFile);
     var expected = new[]
     {
@@ -117,14 +125,14 @@ try
     Require(docked == new DockBounds(-430, 190, 430, 650),
         "负坐标副屏应贴合自身右边缘，并避开工作区底部");
     var handle = EdgeDockLayout.Handle(docked, leftMonitor, DockEdge.Right, 1.5);
-    Require(handle.Width == 15 && handle.Height == 96 && handle.Right == 0,
-        "150% 缩放下侧边签应为 15×96 像素，且不伸入相邻屏幕");
+    Require(handle.Width == 66 && handle.Height == 96 && handle.Right == 0,
+        "150% 缩放下内存边签应为 66×96 像素，且不伸入相邻屏幕");
     Require(handle.Y >= leftMonitor.Y && handle.Bottom <= leftMonitor.Bottom,
         "边签必须保持在工作区内");
     Require(!handle.Contains(docked.X + 10, docked.Y + 10),
         "收缩后的矩形不能继续覆盖原面板内部");
     var topHandle = EdgeDockLayout.Handle(new(600, 0, 430, 650), area, DockEdge.Top, 2);
-    Require(topHandle.Width == 128 && topHandle.Height == 20 && topHandle.Y == 0,
+    Require(topHandle.Width == 128 && topHandle.Height == 80 && topHandle.Y == 0,
         "顶部边签应横向显示并适配 200% 缩放");
     Require(EdgeDockLayout.Snap(new(500, 500, 430, 650), new(0, 0, 320, 240), DockEdge.Left).Y == 0,
         "工作区小于窗口时应保留标题栏可达，不能抛出钳位异常");

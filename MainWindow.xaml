@@ -85,7 +85,10 @@
     <Border x:Name="EdgeHandle" Visibility="Collapsed" Background="#4462E8"
             CornerRadius="5" Cursor="Hand" ToolTip="悬停或点击展开；展开后拖动标题栏离开边缘可取消收起"
             AutomationProperties.Name="展开 Floating Phrases">
-        <TextBlock Text="•" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="内存" FontSize="10" Foreground="White" HorizontalAlignment="Center" />
+            <TextBlock x:Name="EdgeMemoryText" Text="--" FontSize="12" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" />
+        </StackPanel>
     </Border>
     <Border x:Name="MainPanel" Background="#F8F9FD"
             BorderBrush="#D9DEEB"
@@ -459,12 +462,18 @@
 
             <Border Grid.Row="2" Background="#EEF1F7" CornerRadius="0,0,18,18">
                 <Grid Margin="16,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
                     <TextBlock x:Name="StatusText"
                                Text="Ctrl+Alt+C 复制选区 · Ctrl+Alt+Space 显隐"
                                Foreground="#79839A"
                                FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="0,0,8,0"
                                VerticalAlignment="Center" />
-                    <TextBlock Text="拖动标题栏移动"
+                    <TextBlock x:Name="MemoryText" Grid.Column="1" Text="内存 --"
                                Foreground="#9AA2B3"
                                FontSize="10"
                                HorizontalAlignment="Right"
