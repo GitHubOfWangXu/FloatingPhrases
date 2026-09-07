@@ -15,28 +15,19 @@ namespace FloatingPhrases;
 
 public partial class MainWindow : Window
 {
-    private const string DefaultStatus = "Ctrl+Alt+C 复制选区 · Ctrl+Alt+Space 显隐";
+    private const string DefaultStatus = "Ctrl+Alt+Space 显隐 · Ctrl+Alt+T 穿透";
     private const int VisibilityHotkeyId = 0x4650;
     private const int ClickThroughHotkeyId = 0x4651;
-    private const int CopySelectionHotkeyId = 0x4652;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint VkSpace = 0x20;
-    private const uint VkC = 0x43;
     private const uint VkT = 0x54;
     private const int WmHotkey = 0x0312;
 
     private readonly ObservableCollection<Phrase> _phrases;
-    private readonly ObservableCollection<Phrase> _feishuCaptures;
     private readonly ObservableCollection<FolderShortcut> _folders;
     private readonly ObservableCollection<AppShortcut> _apps;
     private readonly PhraseStore _phraseStore = new();
-    private readonly PhraseStore _feishuCaptureStore = new(
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "FloatingPhrases",
-            "feishu-captures.json"),
-        seedDefaults: false);
     private readonly FolderStore _folderStore = new();
     private readonly AppStore _appStore = new();
     private readonly SettingsStore _settingsStore = new();
@@ -64,13 +55,11 @@ public partial class MainWindow : Window
         _edgeDock = new EdgeDockController(this, MainPanel, EdgeHandle, () => ApplyWindowBehavior(IsMouseOver));
         _edgeDock.SetEnabled(_settings.Mode == WindowMode.Floating);
         _phrases = new ObservableCollection<Phrase>(_phraseStore.Load());
-        _feishuCaptures = new ObservableCollection<Phrase>(_feishuCaptureStore.Load());
         _folders = new ObservableCollection<FolderShortcut>(_folderStore.Load());
         _apps = new ObservableCollection<AppShortcut>(_appStore.Load());
         AppCategoryFilter.ItemsSource = new[] { "全部分类" }.Concat(AppCategories.All).ToList();
         AppCategoryFilter.SelectedIndex = 0;
         ApplyPhraseFilter();
-        ApplyFeishuCaptureFilter();
         ApplyFolderFilter();
         ApplyAppFilter();
 
@@ -183,9 +172,7 @@ public partial class MainWindow : Window
             helper.Handle, VisibilityHotkeyId, ModControl | ModAlt, VkSpace);
         var clickThroughRegistered = RegisterHotKey(
             helper.Handle, ClickThroughHotkeyId, ModControl | ModAlt, VkT);
-        var copySelectionRegistered = RegisterHotKey(
-            helper.Handle, CopySelectionHotkeyId, ModControl | ModAlt, VkC);
-        if (!visibilityRegistered || !clickThroughRegistered || !copySelectionRegistered)
+        if (!visibilityRegistered || !clickThroughRegistered)
         {
             StatusText.Text = "部分全局快捷键已被其他程序占用";
             _statusTimer.Stop();
@@ -204,11 +191,6 @@ public partial class MainWindow : Window
         else if (msg == WmHotkey && wParam.ToInt32() == ClickThroughHotkeyId)
         {
             ToggleClickThroughMode();
-            handled = true;
-        }
-        else if (msg == WmHotkey && wParam.ToInt32() == CopySelectionHotkeyId)
-        {
-            CopySelectedTextAfterHotkey();
             handled = true;
         }
 
@@ -245,10 +227,6 @@ public partial class MainWindow : Window
         if (TodoTab.IsSelected)
         {
             TodoView.FocusInput();
-        }
-        else if (MainTabs.SelectedIndex == 3)
-        {
-            FeishuCaptureSearchBox.Focus();
         }
         else if (MainTabs.SelectedIndex == 2)
         {
@@ -292,21 +270,6 @@ public partial class MainWindow : Window
         FolderList.ItemsSource = filtered;
         FolderEmptyHint.Visibility = filtered.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         FolderEmptyHint.Text = _folders.Count == 0 ? "还没有添加文件夹" : "没有匹配的文件夹";
-    }
-
-    private void ApplyFeishuCaptureFilter()
-    {
-        var query = FeishuCaptureSearchBox.Text.Trim();
-        var filtered = _feishuCaptures
-            .Where(capture => string.IsNullOrEmpty(query)
-                || capture.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase)
-                || capture.Text.Contains(query, StringComparison.CurrentCultureIgnoreCase))
-            .OrderByDescending(capture => capture.IsPinned)
-            .ToList();
-
-        FeishuCaptureList.ItemsSource = filtered;
-        FeishuCaptureEmptyHint.Visibility = filtered.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        FeishuCaptureEmptyHint.Text = _feishuCaptures.Count == 0 ? "还没有复制飞书内容" : "没有匹配的飞书内容";
     }
 
     private void ApplyAppFilter()
@@ -392,10 +355,6 @@ public partial class MainWindow : Window
         {
             ShowTodoInput();
         }
-        else if (MainTabs.SelectedIndex == 3)
-        {
-            CaptureFeishuSelectionFromButton();
-        }
         else if (MainTabs.SelectedIndex == 2)
         {
             AddApp();
@@ -455,40 +414,6 @@ public partial class MainWindow : Window
         {
             _phrases.Remove(phrase);
             SavePhrases("短语已删除");
-        }
-    }
-
-    private void EditFeishuCapture_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not Phrase capture)
-        {
-            return;
-        }
-
-        var editor = new PhraseEditorWindow(capture) { Owner = this };
-        if (editor.ShowDialog() != true)
-        {
-            return;
-        }
-
-        capture.Title = string.IsNullOrWhiteSpace(editor.PhraseTitle) ? CreateTitle(editor.PhraseText) : editor.PhraseTitle;
-        capture.Group = string.IsNullOrWhiteSpace(editor.PhraseGroup) ? "飞书" : editor.PhraseGroup;
-        capture.Text = editor.PhraseText;
-        capture.IsPinned = editor.IsPinned;
-        SaveFeishuCaptures("飞书内容已更新");
-    }
-
-    private void DeleteFeishuCapture_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not Phrase capture)
-        {
-            return;
-        }
-
-        if (ConfirmDelete($"确定删除飞书内容“{capture.Title}”吗？"))
-        {
-            _feishuCaptures.Remove(capture);
-            SaveFeishuCaptures("飞书内容已删除");
         }
     }
 
@@ -674,73 +599,6 @@ public partial class MainWindow : Window
         SetStatus(resultStatus ?? "已取消截图");
     }
 
-    private void CopySelectedText()
-    {
-        if (!SelectedTextReader.TryRead(out var text)
-            && !SelectedTextReader.TryReadFeishuFromDesktop(out text))
-        {
-            SetStatus("没有读取到文本选区；请先在目标应用中选中文字");
-            return;
-        }
-
-        CompleteFeishuCapture(text);
-    }
-
-    private async void CopySelectedTextAfterHotkey()
-    {
-        await Task.Delay(120);
-        CopySelectedText();
-    }
-
-    private void CaptureFeishuSelection_Click(object sender, RoutedEventArgs e) => CaptureFeishuSelectionFromButton();
-
-    private void CaptureFeishuSelectionFromButton()
-    {
-        if (!SelectedTextReader.TryReadFeishuFromDesktop(out var text))
-        {
-            SetStatus("没有读取到飞书文本选区；请先在飞书中选中文字");
-            return;
-        }
-
-        CompleteFeishuCapture(text);
-    }
-
-    private void CompleteFeishuCapture(string text)
-    {
-        _feishuCaptures.Insert(0, new Phrase
-        {
-            Title = CreateTitle(text),
-            Group = "飞书",
-            Text = text
-        });
-
-        var copied = TrySetClipboardText(text);
-        SaveFeishuCaptures(copied
-            ? $"已复制并保存飞书内容（{text.Length} 个字符）"
-            : "内容已保存；剪贴板暂时被占用，可点击记录重试");
-    }
-
-    private static bool TrySetClipboardText(string text)
-    {
-        try
-        {
-            System.Windows.Clipboard.SetDataObject(text, true);
-            return true;
-        }
-        catch (ExternalException)
-        {
-            try
-            {
-                return System.Windows.Clipboard.ContainsText()
-                    && System.Windows.Clipboard.GetText() == text;
-            }
-            catch (ExternalException)
-            {
-                return false;
-            }
-        }
-    }
-
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not FolderShortcut folder)
@@ -903,20 +761,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SaveFeishuCaptures(string message)
-    {
-        try
-        {
-            _feishuCaptureStore.Save(_feishuCaptures);
-            ApplyFeishuCaptureFilter();
-            SetStatus(message);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            ShowSaveError(ex);
-        }
-    }
-
     private void SaveFolders(string message)
     {
         try
@@ -970,14 +814,6 @@ public partial class MainWindow : Window
         if (_phrases is not null)
         {
             ApplyPhraseFilter();
-        }
-    }
-
-    private void FeishuCaptureSearchBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_feishuCaptures is not null)
-        {
-            ApplyFeishuCaptureFilter();
         }
     }
 
@@ -1161,7 +997,6 @@ public partial class MainWindow : Window
             var handle = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(handle, VisibilityHotkeyId);
             UnregisterHotKey(handle, ClickThroughHotkeyId);
-            UnregisterHotKey(handle, CopySelectionHotkeyId);
             _source.RemoveHook(WindowProc);
         }
 
