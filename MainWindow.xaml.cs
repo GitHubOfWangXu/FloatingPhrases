@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private readonly EdgeDockController _edgeDock;
     private readonly WindowSettings _settings;
     private readonly Forms.NotifyIcon _trayIcon;
+    private readonly System.Drawing.Icon _trayImage;
     private readonly DispatcherTimer _statusTimer;
     private readonly DispatcherTimer _idleFadeTimer;
     private readonly DispatcherTimer _settingsSaveTimer;
@@ -100,9 +101,15 @@ public partial class MainWindow : Window
         UpdateOpacityLabel();
         _initializingSettings = false;
 
+        using (var iconStream = System.Windows.Application.GetResourceStream(
+            new Uri("pack://application:,,,/FloatingPhrases;component/Assets/app.ico")).Stream)
+        using (var icon = new System.Drawing.Icon(iconStream, Forms.SystemInformation.SmallIconSize))
+        {
+            _trayImage = (System.Drawing.Icon)icon.Clone();
+        }
         _trayIcon = new Forms.NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = _trayImage,
             Text = "Floating Phrases",
             Visible = true,
             ContextMenuStrip = CreateTrayMenu()
@@ -1162,6 +1169,7 @@ public partial class MainWindow : Window
         _settingsSaveTimer.Stop();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
+        _trayImage.Dispose();
         base.OnClosed(e);
     }
 

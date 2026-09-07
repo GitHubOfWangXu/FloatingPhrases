@@ -8,8 +8,10 @@
     <Nullable>enable</Nullable>
     <AssemblyName>FloatingPhrases</AssemblyName>
     <RootNamespace>FloatingPhrases</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="FloatingPhrases.SelfTest\**\*.cs" />
+    <Resource Include="Assets\app.ico" />
   </ItemGroup>
 </Project>
