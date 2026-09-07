@@ -1,8 +1,14 @@
 using FloatingPhrases;
 
-if (args.Length == 1 && args[0] == "--app-visual")
+if (args.Length == 3 && args[0] == "--ui-export")
 {
-    DockVisualChecks.RunApp();
+    LayoutChecks.Run(args[1], args[2]);
+    return 0;
+}
+
+if (args.Length == 1 && args[0] is "--app-visual" or "--todo-app-visual")
+{
+    DockVisualChecks.RunApp(args[0] == "--todo-app-visual" ? "TodoTab" : null);
     return 0;
 }
 
@@ -17,10 +23,11 @@ var testFile = Path.Combine(testDirectory, "phrases.json");
 var folderTestFile = Path.Combine(testDirectory, "folders.json");
 var appTestFile = Path.Combine(testDirectory, "apps.json");
 var settingsTestFile = Path.Combine(testDirectory, "settings.json");
-var captureTestFile = Path.Combine(testDirectory, "feishu-captures.json");
 
 try
 {
+    Directory.CreateDirectory(testDirectory);
+    TodoChecks.Run(testDirectory, args.Length == 2 && args[0] == "--todo-screenshot" ? Path.GetFullPath(args[1]) : null);
     var memory = new MemoryUsage(16UL * 1073741824, 4UL * 1073741824);
     Require(memory.UsedBytes == 12UL * 1073741824 && memory.UsedPercent == 75,
         "系统内存应按总量减去可用量计算，不能误用本进程内存");
@@ -51,14 +58,6 @@ try
     var recovered = store.Load();
     Require(recovered.Count > 0, "损坏数据应恢复为默认短语");
     Require(Directory.EnumerateFiles(testDirectory, "phrases.corrupt-*.json").Any(), "损坏文件应被保留");
-
-    var captureStore = new PhraseStore(captureTestFile, seedDefaults: false);
-    Require(captureStore.Load().Count == 0, "飞书复制历史首次加载应为空");
-    captureStore.Save([new Phrase { Title = "飞书选区", Group = "飞书", Text = "复制内容" }]);
-    Require(captureStore.Load().Single().Text == "复制内容", "飞书复制历史应独立保存并读回");
-    File.WriteAllText(captureTestFile, "{broken json");
-    Require(captureStore.Load().Count == 0, "损坏的飞书复制历史应恢复为空列表");
-    Require(Directory.EnumerateFiles(testDirectory, "feishu-captures.corrupt-*.json").Any(), "损坏的飞书复制历史应使用独立文件名前缀保留");
 
     var folderStore = new FolderStore(folderTestFile);
     folderStore.Save(
@@ -103,9 +102,6 @@ try
 
     settingsStore.Save(new WindowSettings { Mode = WindowMode.Floating, IdleOpacity = 0.05 });
     Require(Math.Abs(settingsStore.Load().IdleOpacity - 0.2) < 0.001, "透明度应限制在安全范围内");
-
-    var combinedSelection = SelectedTextReader.CombineSelections(["第一段", "", null, "第二段  "]);
-    Require(combinedSelection == $"第一段{Environment.NewLine}第二段  ", "多段文本选区应按行合并并保留末尾空白");
 
     var screenshotSelection = ScreenshotSelection.ToPixels(80, 60, 20, 10, 1.5, 2, 300, 200);
     Require(

@@ -2,7 +2,11 @@
 
 [![CI](https://github.com/GitHubOfWangXu/FloatingPhrases/actions/workflows/ci.yml/badge.svg)](https://github.com/GitHubOfWangXu/FloatingPhrases/actions/workflows/ci.yml)
 
-一个 Windows 悬浮工具，用三个 Tab 管理常用句子、本地文件夹和本地软件快捷入口。程序完全在本机运行，不需要账号或网络服务。
+把每天反复找的东西，放到桌面边上。
+
+Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，项目文件夹和软件集中打开，临时待办随手记。不用时贴边收起，用时悬停展开。数据保存在本机，无需注册账号。
+
+适合经常重复回复、切换项目目录，以及希望随手记录待办的 Windows 用户。支持搜索、置顶与拖动排序；这是一个轻量桌面入口，不是跨设备同步或团队任务管理工具。
 
 ## 系统要求
 
@@ -16,11 +20,9 @@
 2. 运行 `FloatingPhrases.exe`。
 3. 窗口默认显示在屏幕右侧并保持置顶，可以拖动标题栏调整位置。
 4. 使用 `Ctrl + Alt + Space` 随时显示或隐藏窗口，使用 `Ctrl + Alt + T` 开启或关闭鼠标穿透。
-5. 在飞书等应用中选中文字后，按 `Ctrl + Alt + C` 将本机可访问的文本选区复制到剪贴板。
-6. “飞书复制”Tab 会保留复制历史；也可以选中文字后点击其中的“复制选区”按钮。
-7. 点击标题栏的“截图”，拖拽选择当前屏幕区域，截图会自动复制到剪贴板；按 `Esc` 取消。
-8. 点击右上角的“—”会隐藏到系统托盘；双击托盘图标可以重新显示。
-9. 要彻底结束程序，右键托盘图标并选择“退出”。直接关闭窗口只会隐藏程序。
+5. 点击标题栏的“截图”，拖拽选择当前屏幕区域，截图会自动复制到剪贴板；按 `Esc` 取消。
+6. 点击右上角的“—”会隐藏到系统托盘；双击托盘图标可以重新显示。
+7. 要彻底结束程序，右键托盘图标并选择“退出”。直接关闭窗口只会隐藏程序。
 
 标准 Release 构建的程序位于：
 
@@ -39,17 +41,6 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 - 勾选“置顶这条短语”：让它排在普通短语之前。
 
 复制后到目标程序中按 `Ctrl + V` 粘贴。短语支持多行文本，并保留首尾空格。
-
-## 复制其他应用中的选中文字
-
-1. 保持 Floating Phrases 在运行（可以隐藏到系统托盘）。
-2. 在飞书文档或其他应用中用鼠标选中文字。
-3. 不要切换窗口，直接按 `Ctrl + Alt + C`。
-4. 到目标位置按 `Ctrl + V` 粘贴。
-
-该功能优先通过 Windows UI Automation 读取前台控件公开的当前文本选区。飞书云文档使用隐藏选区控件时，程序会根据当前屏幕上可访问文本节点的蓝色高亮重建可见选区；不会读取未高亮内容，也不使用 OCR。图片、画布内容、屏幕外选区、深色主题和部分自绘控件可能不支持此方式。
-
-复制成功后，内容会自动保存到“飞书复制”Tab 的顶部。也可以先在飞书中选中文字，再切到该 Tab 点击“复制选区”。点击历史卡片可再次复制，右侧按钮可以编辑或删除；搜索框同时搜索标题和正文。飞书复制历史与常用句子分别保存在不同文件中。
 
 ## 本地文件夹
 
@@ -83,7 +74,7 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 
 - 模式下拉框：在普通、悬浮、穿透三种模式之间切换。
 - 透明度滑块：设置悬浮闲置或穿透时的透明度，可调范围为 20%–90%。
-- “＋”：根据当前 Tab 新增短语、文件夹或软件。
+- “＋”：根据当前 Tab 新增短语、文件夹、软件或输入待办；托盘菜单也提供“新增待办”入口。
 - “截图”：框选当前屏幕区域，并将截图复制到剪贴板。
 - “—”：隐藏到系统托盘。
 
@@ -115,6 +106,14 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 
 窗口底栏和贴边小块每 2 秒刷新系统物理内存占用百分比；悬停提示显示已用和总量（GiB）。占用按“总物理内存减去可用物理内存”计算，读取失败时显示 `--`。隐藏到托盘后暂停刷新，再次显示时立即更新。此功能只读取本机 Windows 内存状态，无需管理员权限，不写入数据文件。
 
+### 待办清单
+
+- 在“待办清单”输入内容后点击“添加”或按 Enter；点击“改”可编辑，取消按钮或 Escape 可放弃编辑。
+- 勾选即完成，再次点击可恢复未完成；已完成项显示删除线并排在后面。
+- 支持内容搜索以及全部、未完成、已完成筛选，底部显示完成数量。
+- 点击“删”后可用“撤销删除”恢复最近删除的一项；撤销记录仅在本次运行有效。
+- 每次成功修改立即保存到独立的 `todos.json`，重启后保留；保存失败会保留原列表及当前输入并提示错误。
+
 ## 配置和数据位置
 
 所有用户数据保存在：
@@ -132,12 +131,12 @@ C:\Users\你的用户名\AppData\Roaming\FloatingPhrases
 | 文件 | 内容 |
 | --- | --- |
 | `phrases.json` | 常用句子 |
-| `feishu-captures.json` | 飞书复制历史 |
 | `folders.json` | 文件夹快捷入口 |
 | `settings.json` | 窗口模式和闲置透明度 |
 | `apps.json` | 本地软件快捷入口、分类和顺序 |
+| `todos.json` | 待办内容和完成状态 |
+| `todos.json.bak` | 上一次保存前的待办备份 |
 | `phrases.json.bak` | 上一次保存前的短语备份 |
-| `feishu-captures.json.bak` | 上一次保存前的飞书复制历史备份 |
 | `folders.json.bak` | 上一次保存前的文件夹备份 |
 | `settings.json.bak` | 上一次保存前的窗口设置备份 |
 | `apps.json.bak` | 上一次保存前的软件入口备份 |
@@ -156,6 +155,17 @@ C:\Users\你的用户名\AppData\Roaming\FloatingPhrases
 3. 将对应的 `.json.bak` 复制一份，并改名为 `.json`。
 4. 重新启动程序检查数据。
 
+## 界面展示与布局检查
+
+标题与操作工具分成两行，四个标签等宽显示；搜索框带输入提示。可用自检入口导出通用示例界面，不启动主窗口、不读取用户数据、不注册快捷键：
+
+```powershell
+dotnet build .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj -c Release
+dotnet .\FloatingPhrases.SelfTest\bin\Release\net8.0-windows\FloatingPhrases.SelfTest.dll --ui-export . bin\ui-preview
+```
+
+导出覆盖 370/430 逻辑像素宽度、96/144/192 DPI 与四个页面。此入口检查布局，不代替点击复制、软件启动或贴边交互的运行验收。
+
 ## 构建和自检
 
 需要 .NET 8 SDK。项目不使用第三方 NuGet 包。
@@ -167,6 +177,8 @@ dotnet run --project .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj 
 
 自检覆盖短语、文件夹、软件入口和窗口设置的保存读取，软件分类归一化、透明度安全范围、拖动顺序、置顶状态、损坏 JSON 备份恢复，以及多行短语的空白字符保留。
 
+待办自检使用临时目录和真实控件事件，覆盖新增、编辑与取消、完成与恢复、搜索筛选、删除与撤销、重新加载，以及保存失败时的界面一致性和损坏文件恢复。
+
 贴边回归还检查完整过渡的窗口尺寸、原生裁剪和点击区域。可在桌面空闲时运行可见录帧验收（将 `Right` 替换为 `Left` 或 `Top` 检查其他方向）：
 
 ```powershell
@@ -177,7 +189,7 @@ dotnet .\FloatingPhrases.SelfTest\bin\Release\net8.0-windows\FloatingPhrases.Sel
 
 ## 隐私与安全
 
-Floating Phrases 在本机运行，不需要账号或网络服务。用户数据保存在 `%APPDATA%\FloatingPhrases`，不会作为项目文件上传。应用只读取 Windows UI Automation 当前公开的文本选区；不会使用 OCR、读取整篇文档或绕过其他应用权限。
+Floating Phrases 在本机运行，不需要账号或网络服务。用户数据保存在 `%APPDATA%\FloatingPhrases`，不会作为项目文件上传。本版本不再提供其他应用文本选区采集或飞书复制功能，也不注册 Ctrl + Alt + C。旧版复制历史文件不会自动删除。
 
 发现安全问题时，请按 [安全策略](SECURITY.md) 使用 GitHub 私密漏洞报告，不要在公开 Issue 中附带个人数据。
 
@@ -194,10 +206,6 @@ Floating Phrases 在本机运行，不需要账号或网络服务。用户数据
 ### `Ctrl + Alt + Space` 没有反应
 
 快捷键可能已被其他程序占用。程序底部会显示冲突提示；退出占用快捷键的程序后重新启动 Floating Phrases。`Ctrl + Alt + T` 冲突时仍可使用托盘菜单退出穿透模式。
-
-### `Ctrl + Alt + C` 没有复制选中的文字
-
-先确认 Floating Phrases 正在运行，并且按快捷键前没有切换离开包含选区的窗口。如果程序提示没有读取到文本选区，说明该页面或控件没有通过 Windows UI Automation 暴露选区；这种情况下本功能不会尝试绕过应用权限或读取整篇文档。
 
 ### 窗口变透明后无法点击
 
