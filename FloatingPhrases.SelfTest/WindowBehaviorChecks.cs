@@ -41,6 +41,7 @@ internal static class WindowBehaviorChecks
                 window.WindowState = WindowState.Maximized;
                 Check(window.WindowState == WindowState.Normal, "异常最大化请求应恢复到普通窗口");
                 Check(window.Width == 430 && window.Height == 650, "恢复后必须保留面板尺寸");
+                CheckDockTransition(window);
             }
             catch (Exception ex) { failure = ex; }
             finally { window?.Close(); }
@@ -54,6 +55,38 @@ internal static class WindowBehaviorChecks
     private static void Check(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
+    }
+
+    private static void CheckDockTransition(Window window)
+    {
+        var panel = new System.Windows.Controls.Border();
+        var handle = new System.Windows.Controls.Border();
+        var root = new System.Windows.Controls.Grid();
+        root.Children.Add(panel);
+        root.Children.Add(handle);
+        window.Content = root;
+        var type = typeof(EdgeDockLayout).Assembly.GetType("FloatingPhrases.EdgeDockController")!;
+        using var controller = (IDisposable)Activator.CreateInstance(type, window, panel, handle, (Action)(() => { }))!;
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        type.GetField("_workArea", flags)!.SetValue(controller, new DockBounds(0, 0, 1920, 1080));
+        type.GetField("_edge", flags)!.SetValue(controller, DockEdge.Right);
+        var scale = System.Windows.Media.VisualTreeHelper.GetDpi(window).DpiScaleX;
+        type.GetMethod("Collapse", flags)!.Invoke(controller, [new DockBounds(1920 - 430 * scale, 100, 430 * scale, 650 * scale)]);
+        Check(Math.Abs(window.Width - 430) < 0.01 && panel.Visibility == Visibility.Visible,
+            "收起开始不能立即跳到小块，必须保留面板并逐步过渡");
+        type.GetMethod("ApplyAnimation", flags)!.Invoke(controller, [0.5]);
+        Check(window.Width > 44 && window.Width < 430 && panel.Opacity > 0 && panel.Opacity < 1,
+            "中间帧必须同时具有中间尺寸和过渡透明度");
+        type.GetMethod("FinishAnimation", flags)!.Invoke(controller, null);
+        Check(panel.Visibility == Visibility.Collapsed && handle.Visibility == Visibility.Visible,
+            "收起结束后仅小块可见");
+        type.GetMethod("Expand")!.Invoke(controller, [true]);
+        type.GetMethod("ApplyAnimation", flags)!.Invoke(controller, [0.5]);
+        Check(window.Width > 44 && window.Width < 430, "展开也必须经过中间尺寸");
+        type.GetMethod("BeginDrag")!.Invoke(controller, null);
+        Check(Math.Abs(window.Width - 430) < 0.01 && Math.Abs(window.Height - 650) < 0.01 && panel.IsHitTestVisible &&
+            double.IsNaN(panel.Width) && panel.Opacity == 1,
+            "动画被拖动打断时应恢复完整尺寸、自动布局和交互");
     }
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]

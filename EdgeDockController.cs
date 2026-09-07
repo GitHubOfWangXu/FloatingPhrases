@@ -16,6 +16,13 @@ internal sealed class EdgeDockController : IDisposable
     private readonly FrameworkElement _handleView;
     private readonly Action _refreshBehavior;
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _animationTimer;
+    private readonly ScaleTransform _panelScale = new();
+    private DockBounds _animationFrom;
+    private DockBounds _animationTo;
+    private long _animationStarted;
+    public bool IsAnimating => _animationTimer.IsEnabled;
+    public bool IsDocked => _edge != DockEdge.None;
     private readonly double _minWidth;
     private readonly double _minHeight;
     private DockBounds _expanded;
@@ -38,6 +45,11 @@ internal sealed class EdgeDockController : IDisposable
         _minHeight = window.MinHeight;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _timer.Tick += Tick;
+        _animationTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _animationTimer.Tick += AnimationTick;
         window.IsVisibleChanged += VisibilityChanged;
         window.PreviewKeyDown += KeyDown;
         handleView.MouseLeftButtonDown += HandleClick;
@@ -78,15 +90,23 @@ internal sealed class EdgeDockController : IDisposable
         }
         ResetDelays();
         UpdateTimer();
+        _refreshBehavior();
     }
 
-    public void Expand()
+    public void Expand(bool animate = false)
     {
+        if (IsAnimating) FinishAnimation();
         if (!IsCollapsed) return;
         // Resolve the monitor while the small handle still lies entirely on it.
         // Restoring minimum size first can temporarily extend into a neighboring monitor.
         _workArea = WorkArea();
         IsCollapsed = false;
+        _expanded = EdgeDockLayout.Snap(_expanded, _workArea, _edge);
+        if (animate && TryBounds(out var start))
+        {
+            StartAnimation(start, _expanded);
+            return;
+        }
         _handleView.Visibility = Visibility.Collapsed;
         _window.MinWidth = _minWidth;
         _window.MinHeight = _minHeight;
@@ -102,18 +122,81 @@ internal sealed class EdgeDockController : IDisposable
     {
         _expanded = EdgeDockLayout.Snap(bounds, _workArea, _edge);
         IsCollapsed = true;
-        _panel.Visibility = Visibility.Collapsed;
+        StartAnimation(bounds, EdgeDockLayout.Handle(_expanded, _workArea, _edge, Scale));
+    }
+
+    private void StartAnimation(DockBounds from, DockBounds to)
+    {
+        _animationFrom = from;
+        _animationTo = to;
+        _animationStarted = Environment.TickCount64;
         _window.MinWidth = 0;
         _window.MinHeight = 0;
+        // Keep text/list layout stable; only transform the rendered panel.
+        _panel.Width = _expanded.Width / Scale;
+        _panel.Height = _expanded.Height / Scale;
+        _panel.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+        _panel.VerticalAlignment = VerticalAlignment.Top;
+        _panel.RenderTransform = _panelScale;
+        _panel.CacheMode = new BitmapCache();
+        _panel.Visibility = Visibility.Visible;
         _handleView.Visibility = Visibility.Visible;
-        Move(EdgeDockLayout.Handle(_expanded, _workArea, _edge, Scale));
+        _panel.IsHitTestVisible = false;
+        _handleView.IsHitTestVisible = false;
+        _animationTimer.Start();
         ResetDelays();
+        _refreshBehavior();
+        ApplyAnimation(0);
+    }
+
+    private void AnimationTick(object? sender, EventArgs e)
+    {
+        var progress = Math.Clamp((Environment.TickCount64 - _animationStarted) / 220.0, 0, 1);
+        ApplyAnimation(progress);
+        if (progress >= 1) FinishAnimation();
+    }
+
+    private void ApplyAnimation(double progress)
+    {
+        var eased = 1 - Math.Pow(1 - progress, 3);
+        double Mix(double from, double to) => from + (to - from) * eased;
+        var bounds = new DockBounds(Mix(_animationFrom.X, _animationTo.X),
+            Mix(_animationFrom.Y, _animationTo.Y), Mix(_animationFrom.Width, _animationTo.Width),
+            Mix(_animationFrom.Height, _animationTo.Height));
+        _panelScale.ScaleX = bounds.Width / _expanded.Width;
+        _panelScale.ScaleY = bounds.Height / _expanded.Height;
+        _panel.Opacity = IsCollapsed ? 1 - eased : eased;
+        _handleView.Opacity = 1 - _panel.Opacity;
+        Move(bounds);
+    }
+
+    private void FinishAnimation()
+    {
+        _animationTimer.Stop();
+        Move(_animationTo);
+        _panel.Visibility = IsCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        _handleView.Visibility = IsCollapsed ? Visibility.Visible : Visibility.Collapsed;
+        _panel.ClearValue(FrameworkElement.WidthProperty);
+        _panel.ClearValue(FrameworkElement.HeightProperty);
+        _panel.ClearValue(FrameworkElement.HorizontalAlignmentProperty);
+        _panel.ClearValue(FrameworkElement.VerticalAlignmentProperty);
+        _panel.RenderTransform = Transform.Identity;
+        _panel.CacheMode = null;
+        _panel.Opacity = _handleView.Opacity = 1;
+        _panel.IsHitTestVisible = _handleView.IsHitTestVisible = true;
+        if (!IsCollapsed)
+        {
+            _window.MinWidth = _minWidth;
+            _window.MinHeight = _minHeight;
+        }
+        ResetDelays();
+        _lastInput = Environment.TickCount64;
         _refreshBehavior();
     }
 
     private void Tick(object? sender, EventArgs e)
     {
-        if (_dragging || !_window.IsVisible || _window.WindowState != WindowState.Normal ||
+        if (IsAnimating || _dragging || !_window.IsVisible || _window.WindowState != WindowState.Normal ||
             _edge == DockEdge.None || !TryBounds(out var bounds)) return;
         // Native disabled state covers both WPF dialogs and native MessageBox loops.
         if (!IsWindowEnabled(Hwnd) || Mouse.Captured is not null ||
@@ -141,7 +224,7 @@ internal sealed class EdgeDockController : IDisposable
         {
             if (!inside) _hoverSince = 0;
             else if (_hoverSince == 0) _hoverSince = now;
-            else if (now - _hoverSince >= 250) Expand();
+            else if (now - _hoverSince >= 250) Expand(animate: true);
         }
         else
         {
@@ -154,13 +237,14 @@ internal sealed class EdgeDockController : IDisposable
     private void HandleClick(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        Expand();
+        Expand(animate: true);
         _window.Activate();
     }
 
     private void KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => _lastInput = Environment.TickCount64;
     private void VisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
+        if (!_window.IsVisible && IsAnimating) FinishAnimation();
         ResetDelays();
         UpdateTimer();
     }
@@ -197,6 +281,8 @@ internal sealed class EdgeDockController : IDisposable
 
     public void Dispose()
     {
+        _animationTimer.Stop();
+        _animationTimer.Tick -= AnimationTick;
         _timer.Stop();
         _timer.Tick -= Tick;
         _window.IsVisibleChanged -= VisibilityChanged;

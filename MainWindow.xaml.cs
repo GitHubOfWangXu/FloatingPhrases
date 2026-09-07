@@ -1064,7 +1064,8 @@ public partial class MainWindow : Window
     private void ApplyWindowBehavior(bool pointerInside)
     {
         OpacitySlider.IsEnabled = _settings.Mode != WindowMode.Normal;
-        _windowBehavior.Apply(_settings.Mode, _settings.IdleOpacity, pointerInside || _edgeDock.IsCollapsed);
+        _windowBehavior.Apply(_settings.Mode, _settings.IdleOpacity,
+            pointerInside || _edgeDock.IsDocked || _edgeDock.IsAnimating);
     }
 
     private void UpdateOpacityLabel() =>
