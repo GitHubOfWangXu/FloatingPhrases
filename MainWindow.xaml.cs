@@ -530,7 +530,7 @@ public partial class MainWindow : Window
 
         try
         {
-            System.Windows.Clipboard.SetText(phrase.Text);
+            System.Windows.Forms.Clipboard.SetText(phrase.Text);
             SetStatus($"已复制：{phrase.Title}");
         }
         catch (ExternalException)

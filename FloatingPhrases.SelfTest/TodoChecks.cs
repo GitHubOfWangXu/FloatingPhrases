@@ -6,6 +6,32 @@ using FloatingPhrases;
 
 internal static class TodoChecks
 {
+    // Opt-in: exercises the real clipboard and leaves generic text for Win+V verification.
+    public static void RunClipboardCopy(string directory)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var text = "FloatingPhrases clipboard check app " + Guid.NewGuid().ToString("N");
+                var store = new TodoStore(Path.Combine(directory, "clipboard-todos.json"));
+                store.Save([new TodoItem { Text = text }]);
+                var view = new TodoListView(store);
+                ((Button)view.FindName("CopyButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Check(((TextBlock)view.FindName("FeedbackText")).Text.StartsWith("已复制 1 条"),
+                    "真实剪贴板写入必须完整成功，不能仅在写入后抛错");
+                Check(System.Windows.Clipboard.GetText() == "- [ ] " + text, "真实剪贴板应读回完整清单");
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failure is not null) throw new InvalidOperationException("真实剪贴板回归失败", failure);
+        Console.WriteLine("Clipboard copy smoke passed; generic checklist left for Win+V verification.");
+    }
+
     public static void Run(string directory, string? screenshot = null)
     {
         var path = Path.Combine(directory, "todos.json");

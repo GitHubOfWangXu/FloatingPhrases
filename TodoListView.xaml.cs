@@ -21,7 +21,7 @@ public partial class TodoListView : System.Windows.Controls.UserControl
     public TodoListView(TodoStore store, Action<string>? copyText = null)
     {
         _store = store;
-        _copyText = copyText ?? System.Windows.Clipboard.SetText;
+        _copyText = copyText ?? System.Windows.Forms.Clipboard.SetText;
         InitializeComponent();
         try
         {
