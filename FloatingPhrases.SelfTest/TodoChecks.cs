@@ -6,6 +6,32 @@ using FloatingPhrases;
 
 internal static class TodoChecks
 {
+    // Opt-in: exercises the real clipboard and leaves generic text for Win+V verification.
+    public static void RunClipboardCopy(string directory)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var text = "FloatingPhrases clipboard check app " + Guid.NewGuid().ToString("N");
+                var store = new TodoStore(Path.Combine(directory, "clipboard-todos.json"));
+                store.Save([new TodoItem { Text = text }]);
+                var view = new TodoListView(store);
+                ((Button)view.FindName("CopyButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Check(((TextBlock)view.FindName("FeedbackText")).Text.StartsWith("已复制 1 条"),
+                    "真实剪贴板写入必须完整成功，不能仅在写入后抛错");
+                Check(System.Windows.Clipboard.GetText() == "- [ ] " + text, "真实剪贴板应读回完整清单");
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failure is not null) throw new InvalidOperationException("真实剪贴板回归失败", failure);
+        Console.WriteLine("Clipboard copy smoke passed; generic checklist left for Win+V verification.");
+    }
+
     public static void Run(string directory, string? screenshot = null)
     {
         var path = Path.Combine(directory, "todos.json");
@@ -22,7 +48,13 @@ internal static class TodoChecks
         {
             try
             {
-                var view = new TodoListView(store) { Width = 390, Height = 490 };
+                string? copiedText = null;
+                var clipboardBusy = false;
+                var view = new TodoListView(store, text =>
+                {
+                    if (clipboardBusy) throw new System.Runtime.InteropServices.ExternalException();
+                    copiedText = text;
+                }) { Width = 390, Height = 490 };
                 void Layout()
                 {
                     view.Measure(new System.Windows.Size(390, 490));
@@ -39,6 +71,17 @@ internal static class TodoChecks
                             (label is null ? element is CheckBox : element is Button button && Equals(button.Content, label)));
                 }
                 void RowClick(Guid id, string? label) => RowControl(id, label).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+                var savedBeforeCopy = File.ReadAllText(path);
+                Check(Named<Button>("CopyButton").IsEnabled, "有待办时应允许复制");
+                Click("CopyButton");
+                Check(copiedText == "- [ ] 整理今日计划" + Environment.NewLine + "- [x] 检查构建结果",
+                    "复制应保留显示顺序和完成状态，输出日志清单");
+                Check(File.ReadAllText(path) == savedBeforeCopy, "复制不能修改待办存储");
+                clipboardBusy = true;
+                Click("CopyButton");
+                Check(Named<TextBlock>("FeedbackText").Text.Contains("请重试"), "剪贴板占用时应提示重试");
+                clipboardBusy = false;
 
                 Named<TextBox>("InputBox").Text = "   ";
                 Click("SaveButton");
@@ -60,8 +103,18 @@ internal static class TodoChecks
                 Check(store.Load().First().IsCompleted, "勾选应保存完成状态");
                 Named<ComboBox>("FilterBox").SelectedIndex = 1;
                 Check(Named<ItemsControl>("TodoList").Items.Count == 1, "未完成筛选应排除已完成项");
+                Click("CopyButton");
+                Check(copiedText == "- [ ] 整理今日计划", "复制应遵循未完成筛选");
                 Named<TextBox>("SearchBox").Text = "不存在的内容";
                 Check(Named<ItemsControl>("TodoList").Items.Count == 0, "搜索应更新列表");
+                Check(!Named<Button>("CopyButton").IsEnabled, "无匹配待办时应禁用复制");
+                Click("CopyButton");
+                Check(copiedText == "- [ ] 整理今日计划", "空清单不能覆盖剪贴板");
+                Named<TextBox>("SearchBox").Clear();
+                Named<ComboBox>("FilterBox").SelectedIndex = 2;
+                Named<TextBox>("SearchBox").Text = "构建";
+                Click("CopyButton");
+                Check(copiedText == "- [x] 检查构建结果", "复制应同时遵循搜索和已完成筛选");
                 Named<TextBox>("SearchBox").Clear();
                 Named<ComboBox>("FilterBox").SelectedIndex = 0;
                 RowClick(added.Id, null);
@@ -81,6 +134,14 @@ internal static class TodoChecks
 
                 var reloaded = new TodoListView(store);
                 Check(((ItemsControl)reloaded.FindName("TodoList")).Items.Count == 3, "重建页面后应读回待办");
+                var emptyView = new TodoListView(new TodoStore(Path.Combine(directory, "empty-todos.json")));
+                Check(!((Button)emptyView.FindName("CopyButton")).IsEnabled, "新清单应禁用复制");
+                var multilineStore = new TodoStore(Path.Combine(directory, "multiline-todos.json"));
+                multilineStore.Save([new TodoItem { Text = "整理记录\r\n补充结论\n发送摘要" }]);
+                var multilineView = new TodoListView(multilineStore, text => copiedText = text);
+                ((Button)multilineView.FindName("CopyButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Check(copiedText == "- [ ] 整理记录" + Environment.NewLine + "  补充结论" + Environment.NewLine + "  发送摘要",
+                    "多行待办应保持换行并缩进续行");
                 if (screenshot is not null)
                 {
                     Named<TextBox>("InputBox").Clear();

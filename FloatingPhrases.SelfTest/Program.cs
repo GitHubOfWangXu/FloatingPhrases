@@ -27,6 +27,11 @@ var settingsTestFile = Path.Combine(testDirectory, "settings.json");
 try
 {
     Directory.CreateDirectory(testDirectory);
+    if (args.Length == 1 && args[0] == "--clipboard-copy-smoke")
+    {
+        TodoChecks.RunClipboardCopy(testDirectory);
+        return 0;
+    }
     TodoChecks.Run(testDirectory, args.Length == 2 && args[0] == "--todo-screenshot" ? Path.GetFullPath(args[1]) : null);
     var memory = new MemoryUsage(16UL * 1073741824, 4UL * 1073741824);
     Require(memory.UsedBytes == 12UL * 1073741824 && memory.UsedPercent == 75,
