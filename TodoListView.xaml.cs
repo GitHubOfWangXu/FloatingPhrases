@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -8,6 +9,7 @@ namespace FloatingPhrases;
 public partial class TodoListView : System.Windows.Controls.UserControl
 {
     private readonly TodoStore _store;
+    private readonly Action<string> _copyText;
     private List<TodoItem> _items = [];
     private Guid? _editing;
     private TodoItem? _deleted;
@@ -16,9 +18,10 @@ public partial class TodoListView : System.Windows.Controls.UserControl
 
     public TodoListView() : this(new TodoStore()) { }
 
-    public TodoListView(TodoStore store)
+    public TodoListView(TodoStore store, Action<string>? copyText = null)
     {
         _store = store;
+        _copyText = copyText ?? System.Windows.Clipboard.SetText;
         InitializeComponent();
         try
         {
@@ -48,10 +51,28 @@ public partial class TodoListView : System.Windows.Controls.UserControl
             && (FilterBox.SelectedIndex == 0 || item.IsCompleted == (FilterBox.SelectedIndex == 2)))
             .OrderBy(item => item.IsCompleted).ToList();
         TodoList.ItemsSource = visible;
+        CopyButton.IsEnabled = visible.Count > 0;
         EmptyHint.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyHint.Text = _items.Count == 0 ? "还没有待办，先记下一件事吧" : "没有符合条件的待办";
         CountText.Text = $"未完成 {_items.Count(item => !item.IsCompleted)} · 已完成 {_items.Count(item => item.IsCompleted)}";
         UndoButton.Visibility = _deleted is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void Copy_Click(object sender, RoutedEventArgs e)
+    {
+        var items = TodoList.Items.Cast<TodoItem>().ToList();
+        if (!_loaded || items.Count == 0) return;
+        var text = string.Join(Environment.NewLine, items.Select(item =>
+            $"- [{(item.IsCompleted ? "x" : " ")}] {item.Text.ReplaceLineEndings(Environment.NewLine + "  ")}"));
+        try
+        {
+            _copyText(text);
+            FeedbackText.Text = $"已复制 {items.Count} 条待办，可粘贴到工作日志";
+        }
+        catch (ExternalException)
+        {
+            FeedbackText.Text = "剪贴板暂时被占用，请重试";
+        }
     }
 
     // Save before replacing the view's state: failed writes must not look successful.
