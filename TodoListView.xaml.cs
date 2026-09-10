@@ -31,7 +31,7 @@ public partial class TodoListView : System.Windows.Controls.UserControl
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            InputBox.IsEnabled = SaveButton.IsEnabled = false;
+            InputBox.IsEnabled = ProgressBox.IsEnabled = SaveButton.IsEnabled = false;
             EmptyHint.Text = "待办读取失败，请检查文件访问权限后重新打开";
             FeedbackText.Text = ex.Message;
         }
@@ -63,7 +63,7 @@ public partial class TodoListView : System.Windows.Controls.UserControl
         var items = TodoList.Items.Cast<TodoItem>().ToList();
         if (!_loaded || items.Count == 0) return;
         var text = string.Join(Environment.NewLine, items.Select(item =>
-            $"- [{(item.IsCompleted ? "x" : " ")}] {item.Text.ReplaceLineEndings(Environment.NewLine + "  ")}"));
+            $"{item.Text.ReplaceLineEndings(Environment.NewLine)} {item.Progress}%"));
         try
         {
             _copyText(text);
@@ -96,14 +96,21 @@ public partial class TodoListView : System.Windows.Controls.UserControl
     {
         var text = InputBox.Text.Trim();
         if (text.Length == 0) { FeedbackText.Text = "先输入待办内容"; FocusInput(); return; }
+        if (!int.TryParse(ProgressBox.Text.Trim(), out var progress) || progress is < 0 or > 100)
+        {
+            FeedbackText.Text = "进度请输入 0–100 的整数";
+            ProgressBox.Focus();
+            ProgressBox.SelectAll();
+            return;
+        }
         var next = _items.ToList();
         if (_editing is { } id)
         {
             var index = next.FindIndex(item => item.Id == id);
             if (index < 0) return;
-            next[index] = next[index] with { Text = text };
+            next[index] = next[index] with { Text = text, Progress = progress, IsCompleted = progress == 100 };
         }
-        else next.Insert(0, new TodoItem { Text = text });
+        else next.Insert(0, new TodoItem { Text = text, Progress = progress, IsCompleted = progress == 100 });
         if (Save(next, _editing is null ? "待办已添加" : "待办已更新")) ResetEditor();
     }
 
@@ -112,6 +119,7 @@ public partial class TodoListView : System.Windows.Controls.UserControl
         if (sender is not FrameworkElement { Tag: TodoItem item }) return;
         _editing = item.Id;
         InputBox.Text = item.Text;
+        ProgressBox.Text = item.Progress.ToString();
         SaveButton.Content = "保存";
         CancelButton.Visibility = Visibility.Visible;
         FocusInput();
@@ -121,8 +129,11 @@ public partial class TodoListView : System.Windows.Controls.UserControl
     private void Complete_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: TodoItem item }) return;
-        Save(_items.Select(current => current.Id == item.Id ? current with { IsCompleted = !current.IsCompleted } : current).ToList(),
+        var saved = Save(_items.Select(current => current.Id == item.Id ? current with
+            { IsCompleted = !current.IsCompleted, Progress = current.IsCompleted ? 0 : 100 } : current).ToList(),
             item.IsCompleted ? "已恢复为未完成" : "待办已完成");
+        if (saved && _editing == item.Id)
+            ProgressBox.Text = _items.First(current => current.Id == item.Id).Progress.ToString();
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)
@@ -148,6 +159,7 @@ public partial class TodoListView : System.Windows.Controls.UserControl
     {
         _editing = null;
         InputBox.Clear();
+        ProgressBox.Text = "0";
         SaveButton.Content = "添加";
         CancelButton.Visibility = Visibility.Collapsed;
         FocusInput();

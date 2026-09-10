@@ -70,8 +70,8 @@ internal static class LayoutChecks
         var todoPath = Path.Combine(output, "sample-todos.json");
         var store = new TodoStore(todoPath);
         store.Save(new[] {
-            new TodoItem { Text = "整理今天的项目进度" },
-            new TodoItem { Text = "准备明天的会议材料" },
+            new TodoItem { Text = "整理今天的项目进度", Progress = 35 },
+            new TodoItem { Text = "准备明天的会议材料", Progress = 70 },
             new TodoItem { Text = "发送最新交付文件", IsCompleted = true }
         });
         Find<ContentControl>("TodoView").Content = new TodoListView(store);
