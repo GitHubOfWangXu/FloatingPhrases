@@ -25,10 +25,9 @@ public sealed class TodoStore
                 ?? throw new JsonException("待办文件为空。");
             var seen = new HashSet<Guid>();
             return items.Where(item => item is not null && !string.IsNullOrWhiteSpace(item.Text))
-                .Select(item => item! with
+                .Select(item => item!.Normalize() with
                 {
-                    Id = item!.Id == Guid.Empty || !seen.Add(item.Id) ? Guid.NewGuid() : item.Id,
-                    Text = item.Text.Trim()
+                    Id = item!.Id == Guid.Empty || !seen.Add(item.Id) ? Guid.NewGuid() : item.Id
                 }).ToList();
         }
         catch (JsonException)
@@ -42,7 +41,7 @@ public sealed class TodoStore
 
     public void Save(IEnumerable<TodoItem> items)
     {
-        var normalized = items.Select(item => item with { Text = item.Text.Trim() }).ToList();
+        var normalized = items.Select(item => item.Normalize()).ToList();
         if (normalized.Any(item => string.IsNullOrWhiteSpace(item.Text)))
             throw new ArgumentException("待办内容不能为空。", nameof(items));
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);

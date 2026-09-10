@@ -9,6 +9,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
@@ -30,6 +31,13 @@
                     Background="#4462E8" Foreground="White" BorderThickness="0" Click="Save_Click" />
             <Button x:Name="CancelButton" Grid.Column="2" Content="取消" Margin="6,0,0,0" Padding="6,0"
                     Visibility="Collapsed" Click="Cancel_Click" />
+            <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="进度" VerticalAlignment="Center" Foreground="#65708A" />
+                <TextBox x:Name="ProgressBox" Text="0" Width="52" Height="28" Margin="8,0,4,0" Padding="5,3"
+                         VerticalContentAlignment="Center" BorderBrush="#D5DAE7" KeyDown="Input_KeyDown"
+                         AutomationProperties.Name="待办进度百分比" ToolTip="输入 0–100 的整数；100 表示完成" />
+                <TextBlock Text="%" VerticalAlignment="Center" Foreground="#65708A" />
+            </StackPanel>
         </Grid>
         <Grid Grid.Row="1" Margin="0,10,0,12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="100" /></Grid.ColumnDefinitions>
@@ -68,19 +76,23 @@
                                     <CheckBox IsChecked="{Binding IsCompleted, Mode=OneWay}" Tag="{Binding}" Click="Complete_Click"
                                               VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="标记完成或恢复未完成"
                                               AutomationProperties.Name="{Binding Text}" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="#29344D" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                        <Setter Property="TextDecorations" Value="Strikethrough" />
-                                                        <Setter Property="Foreground" Value="#8B94A8" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#29344D" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                            <Setter Property="TextDecorations" Value="Strikethrough" />
+                                                            <Setter Property="Foreground" Value="#8B94A8" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Progress, StringFormat={}{0}%}" Foreground="#4462E8"
+                                                   FontSize="11" Margin="0,4,0,0" />
+                                    </StackPanel>
                                     <Button Grid.Column="2" Content="改" Tag="{Binding}" Click="Edit_Click" ToolTip="编辑待办"
                                             Background="Transparent" BorderThickness="0" Foreground="#65708A" Padding="6" />
                                     <Button Grid.Column="3" Content="删" Tag="{Binding}" Click="Delete_Click" ToolTip="删除待办，可撤销"
@@ -96,7 +108,7 @@
             <DockPanel>
                 <Button x:Name="CopyButton" Content="复制清单" DockPanel.Dock="Right" Padding="8,3"
                         IsEnabled="False" Click="Copy_Click" AutomationProperties.Name="复制待办清单"
-                        ToolTip="复制当前搜索和筛选结果，保留完成状态，可直接粘贴到工作日志" />
+                        ToolTip="复制当前搜索和筛选结果，只包含文字和进度百分比，可直接粘贴到工作日志" />
                 <TextBlock x:Name="CountText" Foreground="#65708A" FontSize="11" VerticalAlignment="Center" />
             </DockPanel>
             <DockPanel Margin="0,4,0,0">
