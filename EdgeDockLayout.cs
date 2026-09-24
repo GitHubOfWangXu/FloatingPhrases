@@ -44,4 +44,11 @@ public static class EdgeDockLayout
             expanded.X + (expanded.Width - width) / 2,
             expanded.Y + (expanded.Height - height) / 2, width, height), area, edge);
     }
+
+    public static DockBounds PanelFromHandle(DockBounds handle, DockBounds panel, DockBounds area, DockEdge edge) =>
+        Snap(panel with
+        {
+            X = handle.X + (handle.Width - panel.Width) / 2,
+            Y = handle.Y + (handle.Height - panel.Height) / 2
+        }, area, edge);
 }

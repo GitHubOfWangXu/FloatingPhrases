@@ -152,6 +152,32 @@ try
     var taskbarArea = new DockBounds(48, 40, 1872, 1000);
     Require(EdgeDockLayout.Snap(new(50, 20, 430, 650), taskbarArea, DockEdge.Left).X == 48,
         "吸附应使用工作区，避开左侧任务栏");
+    foreach (var scale in new[] { 1.0, 1.5, 2.0 })
+    {
+        foreach (var edge in new[] { DockEdge.Left, DockEdge.Right, DockEdge.Top })
+        {
+            var originalPanel = EdgeDockLayout.Snap(new(-1200, -100, 430 * scale, 650 * scale), leftMonitor, edge);
+            var originalHandle = EdgeDockLayout.Handle(originalPanel, leftMonitor, edge, scale);
+            var offsetHandle = originalHandle with
+            {
+                X = originalHandle.X + (edge == DockEdge.Top ? 70 : 0),
+                Y = originalHandle.Y + (edge == DockEdge.Top ? 0 : 25)
+            };
+            var relocated = EdgeDockLayout.PanelFromHandle(offsetHandle, originalPanel, leftMonitor, edge);
+            var relocatedHandle = EdgeDockLayout.Handle(relocated, leftMonitor, edge, scale);
+            Require(relocatedHandle.X >= leftMonitor.X && relocatedHandle.Right <= leftMonitor.Right &&
+                relocatedHandle.Y >= leftMonitor.Y && relocatedHandle.Bottom <= leftMonitor.Bottom,
+                "负坐标屏幕不同缩放下拖动小块后必须仍在工作区内");
+            Require(relocated.Width == originalPanel.Width && relocated.Height == originalPanel.Height,
+                "拖动小块不得改变完整面板尺寸");
+        }
+    }
+    var releasedHandle = new DockBounds(800, 400, 44, 64);
+    Require(EdgeDockLayout.PanelFromHandle(releasedHandle, new(0, 0, 430, 650), area, DockEdge.None)
+        == new DockBounds(607, 107, 430, 650), "拖离边缘后应在小块释放位置居中展开，不能返回原边缘");
+    var switchedPanel = EdgeDockLayout.PanelFromHandle(new(1876, 400, 44, 64), new(0, 0, 430, 650), area, DockEdge.Right);
+    Require(EdgeDockLayout.Handle(switchedPanel, area, DockEdge.Right, 1) == new DockBounds(1876, 400, 44, 64),
+        "跨边缘拖动后小块应停在新的释放位置");
 
     File.WriteAllText(settingsTestFile, "{broken json");
     var recoveredSettings = settingsStore.Load();

@@ -235,8 +235,63 @@ internal sealed class EdgeDockController : IDisposable
     private void HandleClick(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        Expand(animate: true);
+        if (!IsCollapsed || !TryBounds(out var start)) return;
+        var moved = false;
+        void TrackMovement(object? source, EventArgs args)
+        {
+            if (TryBounds(out var current))
+                moved |= Math.Abs(current.X - start.X) >= SystemParameters.MinimumHorizontalDragDistance * Scale ||
+                    Math.Abs(current.Y - start.Y) >= SystemParameters.MinimumVerticalDragDistance * Scale;
+        }
+
+        // Keep the native handle region and collapsed content throughout the move.
+        // DragMove owns mouse capture until release; Tick must not expand on hover.
+        _dragging = true;
+        ResetDelays();
+        _window.LocationChanged += TrackMovement;
+        try { _window.DragMove(); }
+        finally
+        {
+            _window.LocationChanged -= TrackMovement;
+            _dragging = false;
+            CompleteHandleDrag(moved);
+        }
         _window.Activate();
+    }
+
+    private void CompleteHandleDrag(bool moved)
+    {
+        if (!TryBounds(out var bounds)) return;
+        if (!moved)
+        {
+            Expand(animate: true);
+            return;
+        }
+
+        // The invisible full panel may overlap another monitor. Use the visible
+        // handle to choose both the destination monitor and the docking edge.
+        var handle = new DockBounds(bounds.X + _handleView.Margin.Left * Scale,
+            bounds.Y + _handleView.Margin.Top * Scale, _handleView.Width * Scale, _handleView.Height * Scale);
+        var area = Forms.Screen.FromPoint(new System.Drawing.Point(
+            (int)Math.Round(handle.X + handle.Width / 2), (int)Math.Round(handle.Y + handle.Height / 2))).WorkingArea;
+        _workArea = new DockBounds(area.X, area.Y, area.Width, area.Height);
+        _edge = _enabled ? EdgeDockLayout.Detect(handle, _workArea, 16 * Scale) : DockEdge.None;
+        _expanded = EdgeDockLayout.PanelFromHandle(handle, bounds, _workArea, _edge);
+        Move(_expanded);
+        if (_edge == DockEdge.None) Expand();
+        else
+        {
+            // Reposition the small view if the drag changed edges or monitor DPI.
+            var target = EdgeDockLayout.Handle(_expanded, _workArea, _edge, Scale);
+            _handleView.Width = target.Width / Scale;
+            _handleView.Height = target.Height / Scale;
+            _handleView.Margin = new Thickness((target.X - _expanded.X) / Scale,
+                (target.Y - _expanded.Y) / Scale, 0, 0);
+            FinishAnimation();
+        }
+        ResetDelays();
+        UpdateTimer();
+        _refreshBehavior();
     }
 
     private void KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => _lastInput = Environment.TickCount64;
