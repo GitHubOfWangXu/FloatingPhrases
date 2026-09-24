@@ -42,6 +42,8 @@ internal static class WindowBehaviorChecks
                 Check(window.WindowState == WindowState.Normal, "异常最大化请求应恢复到普通窗口");
                 Check(window.Width == 430 && window.Height == 650, "恢复后必须保留面板尺寸");
                 CheckDockTransition(window);
+                CheckHandleDrag(window);
+                CheckOffscreenDrop(window);
             }
             catch (Exception ex) { failure = ex; }
             finally { window?.Close(); }
@@ -117,12 +119,164 @@ internal static class WindowBehaviorChecks
         }
     }
 
+    private static void CheckHandleDrag(Window window)
+    {
+        var panel = new System.Windows.Controls.Border();
+        var handle = new System.Windows.Controls.Border();
+        var root = new System.Windows.Controls.Grid();
+        root.Children.Add(panel);
+        root.Children.Add(handle);
+        window.Content = root;
+        var type = typeof(EdgeDockLayout).Assembly.GetType("FloatingPhrases.EdgeDockController")!;
+        using var controller = (IDisposable)Activator.CreateInstance(type, window, panel, handle, (Action)(() => { }))!;
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var hwnd = new WindowInteropHelper(window).Handle;
+        var screen = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea;
+        var area = new DockBounds(screen.X, screen.Y, screen.Width, screen.Height);
+        var scale = System.Windows.Media.VisualTreeHelper.GetDpi(window).DpiScaleX;
+        type.GetMethod("SetEnabled")!.Invoke(controller, [true]);
+        foreach (var edge in new[] { DockEdge.Left, DockEdge.Right, DockEdge.Top, DockEdge.Bottom })
+        {
+            var initial = EdgeDockLayout.Snap(new(area.X + 100, area.Y + 100, 430 * scale, 650 * scale), area, edge);
+            type.GetField("_workArea", flags)!.SetValue(controller, area);
+            type.GetField("_edge", flags)!.SetValue(controller, edge);
+            type.GetMethod("Move", flags)!.Invoke(controller, [initial]);
+            type.GetMethod("Collapse", flags)!.Invoke(controller, [initial]);
+            type.GetMethod("FinishAnimation", flags)!.Invoke(controller, null);
+            var horizontal = edge is DockEdge.Top or DockEdge.Bottom;
+            var shifted = initial with { X = initial.X + (horizontal ? 40 : 0),
+                Y = initial.Y + (horizontal ? 0 : 40) };
+            type.GetMethod("Move", flags)!.Invoke(controller, [shifted]);
+            Check(panel.Visibility == Visibility.Collapsed && handle.Visibility == Visibility.Visible,
+                "拖动过程中必须始终只显示小块");
+            type.GetMethod("CompleteHandleDrag", flags)!.Invoke(controller, [true]);
+            Check((bool)type.GetProperty("IsCollapsed")!.GetValue(controller)! &&
+                (DockEdge)type.GetField("_edge", flags)!.GetValue(controller)! == edge,
+                "沿边缘拖动并释放后应保持收起且吸附在原边缘");
+            var region = CreateRectRgn(0, 0, 0, 0);
+            try { Check(GetWindowRgn(hwnd, region) == 2, "拖动释放后仍应裁剪为小块，不能阻挡透明区域点击"); }
+            finally { DeleteObject(region); }
+
+            var destination = edge == DockEdge.Right ? DockEdge.Left : DockEdge.Right;
+            var targetEdgeX = destination == DockEdge.Left ? area.X : area.Right - handle.Width * scale;
+            var crossEdge = new DockBounds(targetEdgeX - handle.Margin.Left * scale,
+                area.Y + area.Height / 2 - handle.Height * scale / 2 - handle.Margin.Top * scale,
+                initial.Width, initial.Height);
+            type.GetMethod("Move", flags)!.Invoke(controller, [crossEdge]);
+            type.GetMethod("CompleteHandleDrag", flags)!.Invoke(controller, [true]);
+            Check((bool)type.GetProperty("IsCollapsed")!.GetValue(controller)! &&
+                (DockEdge)type.GetField("_edge", flags)!.GetValue(controller)! == destination,
+                "跨边缘拖动应根据可见小块吸附，不能用透明面板的边界判断");
+            Check(handle.Width == 44 && handle.Height == 64,
+                "从顶部拖到侧边后应恢复竖向小块尺寸");
+
+            // Translate the actual visible handle to the middle of the monitor.
+            GetWindowRect(hwnd, out var rect);
+            var targetX = area.X + area.Width / 2 - handle.Width * scale / 2;
+            var targetY = area.Y + area.Height / 2 - handle.Height * scale / 2;
+            var detached = new DockBounds(targetX - handle.Margin.Left * scale,
+                targetY - handle.Margin.Top * scale, rect.Right - rect.Left, rect.Bottom - rect.Top);
+            type.GetMethod("Move", flags)!.Invoke(controller, [detached]);
+            type.GetMethod("CompleteHandleDrag", flags)!.Invoke(controller, [true]);
+            Check(!(bool)type.GetProperty("IsCollapsed")!.GetValue(controller)! &&
+                !(bool)type.GetProperty("IsDocked")!.GetValue(controller)! && panel.Visibility == Visibility.Visible,
+                "小块拖离边缘后应展开并解除贴边");
+            region = CreateRectRgn(0, 0, 0, 0);
+            try { Check(GetWindowRgn(hwnd, region) == 0, "拖离后完整面板应恢复原生命中范围"); }
+            finally { DeleteObject(region); }
+
+            type.GetField("_edge", flags)!.SetValue(controller, edge);
+            type.GetMethod("Move", flags)!.Invoke(controller, [initial]);
+            type.GetMethod("Collapse", flags)!.Invoke(controller, [initial]);
+            type.GetMethod("FinishAnimation", flags)!.Invoke(controller, null);
+            type.GetMethod("CompleteHandleDrag", flags)!.Invoke(controller, [false]);
+            Check(!(bool)type.GetProperty("IsCollapsed")!.GetValue(controller)! &&
+                (bool)type.GetProperty("IsAnimating")!.GetValue(controller)!, "单击小块应保留展开动画");
+            type.GetMethod("FinishAnimation", flags)!.Invoke(controller, null);
+        }
+    }
+
+    private static void CheckOffscreenDrop(Window window)
+    {
+        var panel = new System.Windows.Controls.Border();
+        var handle = new System.Windows.Controls.Border();
+        var root = new System.Windows.Controls.Grid();
+        root.Children.Add(panel);
+        root.Children.Add(handle);
+        window.Content = root;
+        var type = typeof(EdgeDockLayout).Assembly.GetType("FloatingPhrases.EdgeDockController")!;
+        using var controller = (IDisposable)Activator.CreateInstance(type, window, panel, handle, (Action)(() => { }))!;
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var hwnd = new WindowInteropHelper(window).Handle;
+        var screen = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea;
+        var area = new DockBounds(screen.X, screen.Y, screen.Width, screen.Height);
+        type.GetMethod("SetEnabled")!.Invoke(controller, [true]);
+        var width = Math.Min(430, area.Width / 2);
+        var height = Math.Min(650, area.Height / 2);
+        var scale = System.Windows.Media.VisualTreeHelper.GetDpi(window).DpiScaleX;
+        foreach (var edge in new[] { DockEdge.Left, DockEdge.Right, DockEdge.Top, DockEdge.Bottom })
+        {
+            foreach (var nativeMove in new[] { false, true })
+            foreach (var distance in new[] { -120.0, -1.0, 12 * scale, 32 * scale })
+            {
+                type.GetMethod("BeginDrag")!.Invoke(controller, null);
+                var bounds = new DockBounds(area.X + (area.Width - width) / 2,
+                    area.Y + (area.Height - height) / 2, width, height);
+                bounds = edge switch
+                {
+                    DockEdge.Left => bounds with { X = area.X + distance },
+                    DockEdge.Right => bounds with { X = area.Right - width - distance },
+                    DockEdge.Top => bounds with { Y = area.Y + distance },
+                    _ => bounds with { Y = area.Bottom - height - distance }
+                };
+                if (nativeMove)
+                {
+                    var memory = Marshal.AllocHGlobal(Marshal.SizeOf<NativeRect>());
+                    try
+                    {
+                        Marshal.StructureToPtr(new NativeRect { Left = (int)bounds.X, Top = (int)bounds.Y,
+                            Right = (int)bounds.Right, Bottom = (int)bounds.Bottom }, memory, false);
+                        SendMessage(hwnd, 0x0216, IntPtr.Zero, memory); // WM_MOVING, no global mouse input.
+                        var snapped = Marshal.PtrToStructure<NativeRect>(memory);
+                        Check(snapped.Left >= area.X && snapped.Top >= area.Y &&
+                            snapped.Right <= area.Right && snapped.Bottom <= area.Bottom,
+                            "原生拖动消息应在松手前就将窗口吸附回工作区");
+                        if (distance > 16 * scale)
+                            Check(snapped.Left == (int)bounds.X && snapped.Top == (int)bounds.Y,
+                                "拖离阈值后不得继续被边缘吸住");
+                        bounds = new DockBounds(snapped.Left, snapped.Top,
+                            snapped.Right - snapped.Left, snapped.Bottom - snapped.Top);
+                    }
+                    finally { Marshal.FreeHGlobal(memory); }
+                }
+                type.GetMethod("Move", flags)!.Invoke(controller, [bounds]);
+                type.GetMethod("EndDrag")!.Invoke(controller, null);
+                Check((bool)type.GetProperty("IsDocked")!.GetValue(controller)! == (distance <= 16 * scale),
+                    $"{edge} 边缘距离 {distance} 像素时必须吸附，不能遗留半个窗口");
+                GetWindowRect(hwnd, out var current);
+                Check(current.Left >= area.X && current.Top >= area.Y && current.Right <= area.Right && current.Bottom <= area.Bottom,
+                    "拖动释放后完整窗口边界必须回到工作区内");
+                Check((bool)type.GetProperty("IsCollapsed")!.GetValue(controller)! == (distance < 0),
+                    "越过边缘应立即启动收起；仅靠近时应吸附并保留展开状态");
+                if (distance < 0)
+                {
+                    type.GetMethod("FinishAnimation", flags)!.Invoke(controller, null);
+                    Check(panel.Visibility == Visibility.Collapsed && handle.Visibility == Visibility.Visible,
+                        "越界释放后应只显示完整小块");
+                }
+            }
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRect { public int Left, Top, Right, Bottom; }
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam);
 
     [DllImport("gdi32.dll")]
     private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
