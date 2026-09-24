@@ -129,10 +129,16 @@ try
         "轻微越过上边缘也应触发贴边");
     Require(EdgeDockLayout.Detect(new(17, 200, 430, 650), area, 16) == DockEdge.None,
         "拖离吸附阈值应取消贴边");
-    Require(EdgeDockLayout.Detect(new(600, 390, 430, 650), area, 16) == DockEdge.None,
-        "底边不应触发收缩，以免干扰任务栏");
+    Require(EdgeDockLayout.Detect(new(600, 390, 430, 650), area, 16) == DockEdge.Bottom,
+        "底边应吸附到工作区底部，避开任务栏");
     Require(EdgeDockLayout.Detect(new(10, 2, 430, 650), area, 16) == DockEdge.Top,
         "角落应选择距离最近的边缘");
+    Require(EdgeDockLayout.Detect(new(-120, 2, 430, 650), area, 16) == DockEdge.Left,
+        "角落应优先纠正越界边，不能被附近的另一条边抢走");
+    Require(EdgeDockLayout.Detect(new(1750, 200, 430, 650), area, 16) == DockEdge.Right,
+        "右侧大幅越界也应吸附，不能因超过距离阈值而漏判");
+    Require(EdgeDockLayout.Detect(new(-2150, 0, 430, 650), new(-1920, -200, 1920, 1040), 16) == DockEdge.Left,
+        "负坐标屏幕应按其工作区检测越界");
     var leftMonitor = new DockBounds(-1920, -200, 1920, 1040);
     var docked = EdgeDockLayout.Snap(new(-440, 500, 430, 650), leftMonitor, DockEdge.Right);
     Require(docked == new DockBounds(-430, 190, 430, 650),
@@ -147,6 +153,9 @@ try
     var topHandle = EdgeDockLayout.Handle(new(600, 0, 430, 650), area, DockEdge.Top, 2);
     Require(topHandle.Width == 128 && topHandle.Height == 80 && topHandle.Y == 0,
         "顶部边签应横向显示并适配 200% 缩放");
+    var bottomHandle = EdgeDockLayout.Handle(new(600, 390, 430, 650), area, DockEdge.Bottom, 1.5);
+    Require(bottomHandle.Width == 96 && bottomHandle.Height == 60 && bottomHandle.Bottom == area.Bottom,
+        "底部小块应横向显示且完整位于任务栏上方");
     Require(EdgeDockLayout.Snap(new(500, 500, 430, 650), new(0, 0, 320, 240), DockEdge.Left).Y == 0,
         "工作区小于窗口时应保留标题栏可达，不能抛出钳位异常");
     var taskbarArea = new DockBounds(48, 40, 1872, 1000);

@@ -27,6 +27,8 @@ internal sealed class EdgeDockController : IDisposable
     private DockEdge _edge;
     private bool _enabled;
     private bool _dragging;
+    private HwndSource? _source;
+    private DockBounds? _moveCandidate;
     private long _outsideSince;
     private long _hoverSince;
     private long _lastInput;
@@ -47,6 +49,8 @@ internal sealed class EdgeDockController : IDisposable
         _animationTimer.Tick += AnimationTick;
         window.IsVisibleChanged += VisibilityChanged;
         window.PreviewKeyDown += KeyDown;
+        window.SourceInitialized += SourceInitialized;
+        if (Hwnd != IntPtr.Zero) AttachMoveHook();
         handleView.MouseLeftButtonDown += HandleClick;
     }
 
@@ -69,6 +73,7 @@ internal sealed class EdgeDockController : IDisposable
         Expand();
         _dragging = true;
         _edge = DockEdge.None;
+        _moveCandidate = null;
         ResetDelays();
     }
 
@@ -76,12 +81,15 @@ internal sealed class EdgeDockController : IDisposable
     {
         _dragging = false;
         if (!_enabled || _window.WindowState != WindowState.Normal || !TryBounds(out var bounds)) return;
-        _workArea = WorkArea();
-        _edge = EdgeDockLayout.Detect(bounds, _workArea, 16 * Scale);
+        var released = _moveCandidate ?? bounds;
+        _moveCandidate = null;
+        _workArea = WorkArea(released);
+        _edge = EdgeDockLayout.Detect(released, _workArea, 16 * Scale);
         if (_edge != DockEdge.None)
         {
             _expanded = EdgeDockLayout.Snap(bounds, _workArea, _edge);
             Move(_expanded);
+            if (EdgeDockLayout.Distance(released, _workArea, _edge) < 0) Collapse(_expanded);
         }
         ResetDelays();
         UpdateTimer();
@@ -154,7 +162,7 @@ internal sealed class EdgeDockController : IDisposable
         _panel.Opacity = IsCollapsed ? 1 - eased : eased;
         var offset = 12 * (1 - _panel.Opacity);
         _panelOffset.X = _edge == DockEdge.Left ? -offset : _edge == DockEdge.Right ? offset : 0;
-        _panelOffset.Y = _edge == DockEdge.Top ? -offset : 0;
+        _panelOffset.Y = _edge == DockEdge.Top ? -offset : _edge == DockEdge.Bottom ? offset : 0;
         _handleView.Opacity = 1 - _panel.Opacity;
     }
 
@@ -295,6 +303,37 @@ internal sealed class EdgeDockController : IDisposable
     }
 
     private void KeyDown(object sender, System.Windows.Input.KeyEventArgs e) => _lastInput = Environment.TickCount64;
+    private void SourceInitialized(object? sender, EventArgs e) => AttachMoveHook();
+
+    private void AttachMoveHook()
+    {
+        _source = HwndSource.FromHwnd(Hwnd);
+        _source?.AddHook(MoveHook);
+    }
+
+    private IntPtr MoveHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int wmMoving = 0x0216;
+        if (message != wmMoving || !_enabled || !_dragging || IsCollapsed || lParam == IntPtr.Zero)
+            return IntPtr.Zero;
+        var rect = Marshal.PtrToStructure<NativeRect>(lParam);
+        var proposed = new DockBounds(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+        // Keep the pre-snap position so releasing beyond the edge still triggers
+        // collapse, even though magnetic snapping kept the HWND on screen.
+        _moveCandidate = proposed;
+        var area = WorkArea(proposed);
+        var edge = EdgeDockLayout.Detect(proposed, area, 16 * Scale);
+        if (edge == DockEdge.None) return IntPtr.Zero;
+        var target = EdgeDockLayout.Snap(proposed, area, edge);
+        rect.Left = (int)Math.Round(target.X);
+        rect.Top = (int)Math.Round(target.Y);
+        rect.Right = rect.Left + (int)Math.Round(target.Width);
+        rect.Bottom = rect.Top + (int)Math.Round(target.Height);
+        Marshal.StructureToPtr(rect, lParam, false);
+        handled = true;
+        return new IntPtr(1);
+    }
+
     private void VisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (!_window.IsVisible && IsAnimating) FinishAnimation();
@@ -313,6 +352,14 @@ internal sealed class EdgeDockController : IDisposable
     private DockBounds WorkArea()
     {
         var area = Forms.Screen.FromHandle(Hwnd).WorkingArea;
+        return new DockBounds(area.X, area.Y, area.Width, area.Height);
+    }
+
+    private static DockBounds WorkArea(DockBounds bounds)
+    {
+        var area = Forms.Screen.FromRectangle(new System.Drawing.Rectangle(
+            (int)Math.Round(bounds.X), (int)Math.Round(bounds.Y),
+            (int)Math.Round(bounds.Width), (int)Math.Round(bounds.Height))).WorkingArea;
         return new DockBounds(area.X, area.Y, area.Width, area.Height);
     }
 
@@ -340,6 +387,8 @@ internal sealed class EdgeDockController : IDisposable
         _timer.Tick -= Tick;
         _window.IsVisibleChanged -= VisibilityChanged;
         _window.PreviewKeyDown -= KeyDown;
+        _window.SourceInitialized -= SourceInitialized;
+        _source?.RemoveHook(MoveHook);
         _handleView.MouseLeftButtonDown -= HandleClick;
         if (Hwnd != IntPtr.Zero) SetWindowRgn(Hwnd, IntPtr.Zero, false);
     }
