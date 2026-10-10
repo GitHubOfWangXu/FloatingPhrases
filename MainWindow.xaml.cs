@@ -524,25 +524,14 @@ public partial class MainWindow : Window
     {
         try
         {
-            var existingPaths = _apps
-                .Select(app => app.Path)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var imported = DesktopAppImporter.FindApps()
-                .Where(app => existingPaths.Add(app.Path))
-                .ToList();
-
-            foreach (var app in imported)
-            {
-                _apps.Add(app);
-            }
-
-            if (imported.Count == 0)
+            var added = DesktopAppImporter.AddNewApps(_apps, DesktopAppImporter.FindApps());
+            if (added == 0)
             {
                 SetStatus("桌面没有新的软件快捷方式");
                 return;
             }
 
-            SaveApps($"已导入 {imported.Count} 个桌面软件");
+            SaveApps($"已导入 {added} 个桌面软件");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or COMException)
         {

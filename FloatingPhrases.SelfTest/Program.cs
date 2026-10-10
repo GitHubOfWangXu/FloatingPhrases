@@ -103,9 +103,56 @@ try
     Require(AppCategories.Infer("Visual Studio Code", "Code.exe") == AppCategories.Development, "VS Code 应识别为开发工具");
     Require(AppCategories.Infer("微信", "Weixin.exe") == AppCategories.Office, "微信应识别为办公沟通");
 
+    // 旧数组格式和缺省分类保持兼容；自定义分类也使用原有字段保存。
+    File.WriteAllText(appTestFile, "[{\"name\":\"旧软件\",\"path\":\"Sample.exe\"}]");
+    Require(appStore.Load().Single().Category == AppCategories.Other, "旧数据缺省分类不能变为自定义");
+    var customApp = new AppShortcut
+    {
+        Name = "我的编辑器", Path = testFile, Category = AppCategories.Custom, IsPinned = true
+    };
+    appStore.Save([customApp, loadedApps[1]]);
+    var appsToImport = appStore.Load().ToList();
+    var candidates = new[]
+    {
+        new AppShortcut { Name = "桌面同路径", Path = testFile.ToUpperInvariant(), Category = AppCategories.Development },
+        new AppShortcut { Name = "桌面新软件", Path = settingsTestFile, Category = AppCategories.Office },
+        new AppShortcut { Name = "桌面重复路径", Path = settingsTestFile, Category = AppCategories.Other }
+    };
+    Require(DesktopAppImporter.AddNewApps(appsToImport, candidates) == 1, "导入只应追加新路径，忽略已有路径和批内重复");
+    Require(DesktopAppImporter.AddNewApps(appsToImport, candidates) == 0, "再次导入不能重复添加");
+    appStore.Save(appsToImport);
+    var afterImport = appStore.Load();
+    Require(afterImport.Count == 3 && afterImport[0].Id == customApp.Id && afterImport[1].Id == loadedApps[1].Id,
+        "导入和重启读回后应保留原软件顺序和标识");
+    Require(afterImport[0].Name == customApp.Name && afterImport[0].Path == customApp.Path
+        && afterImport[0].Category == AppCategories.Custom && afterImport[0].IsPinned,
+        "导入和重启读回后应保留自定义名称、路径、分类和置顶");
+
+    Exception? appEditorFailure = null;
+    var appEditorThread = new Thread(() =>
+    {
+        try
+        {
+            var editor = new AppEditorWindow();
+            Require(editor.Category == AppCategories.Custom, "手动新增应默认选择自定义");
+            Require(((System.Windows.Controls.ComboBox)editor.FindName("CategoryBox")).Items.Contains(AppCategories.Custom),
+                "软件分类下拉应包含自定义");
+            editor.Close();
+            var existingEditor = new AppEditorWindow(customApp);
+            Require(existingEditor.Category == AppCategories.Custom, "编辑自定义软件应保持分类");
+            existingEditor.Close();
+        }
+        catch (Exception ex) { appEditorFailure = ex; }
+    });
+    appEditorThread.SetApartmentState(ApartmentState.STA);
+    appEditorThread.Start();
+    appEditorThread.Join();
+    if (appEditorFailure is not null) throw new InvalidOperationException("软件编辑界面回归失败", appEditorFailure);
+
     var desktopApps = DesktopAppImporter.FindApps();
     Require(desktopApps.All(app => File.Exists(app.Path)), "桌面导入结果必须指向现有程序或快捷方式");
     Require(desktopApps.All(app => AppCategories.All.Contains(app.Category)), "桌面导入结果必须使用有效分类");
+    Require(desktopApps.All(app => app.Category != AppCategories.Custom), "桌面导入不能自动归入自定义分类");
 
     var order = new List<string> { "A", "B", "C" };
     Require(ItemOrder.Move(order, "C", "A", false), "应能把项目移动到目标之前");
