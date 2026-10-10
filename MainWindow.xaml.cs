@@ -143,7 +143,7 @@ public partial class MainWindow : Window
         {
             _edgeDock.Expand();
             MainTabs.SelectedIndex = 1;
-            FileTypeBox.SelectedIndex = 1;
+            FileTabs.SelectedIndex = 1;
             DocumentView.BrowseFiles();
         }));
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
@@ -246,7 +246,7 @@ public partial class MainWindow : Window
         }
         else if (MainTabs.SelectedIndex == 1)
         {
-            if (FileTypeBox.SelectedIndex == 1) DocumentView.FocusSearch();
+            if (FileTabs.SelectedIndex == 1) DocumentView.FocusSearch();
             else FolderSearchBox.Focus();
         }
         else
@@ -327,7 +327,7 @@ public partial class MainWindow : Window
     {
         _edgeDock.Expand();
         MainTabs.SelectedIndex = 1;
-        FileTypeBox.SelectedIndex = 0;
+        FileTabs.SelectedIndex = 0;
         var editor = new FolderEditorWindow { Owner = this };
         if (editor.ShowDialog() != true)
         {
@@ -379,7 +379,7 @@ public partial class MainWindow : Window
         }
         else if (MainTabs.SelectedIndex == 1)
         {
-            if (FileTypeBox.SelectedIndex == 1) DocumentView.BrowseFiles();
+            if (FileTabs.SelectedIndex == 1) DocumentView.BrowseFiles();
             else AddFolder();
         }
         else
@@ -389,14 +389,6 @@ public partial class MainWindow : Window
     }
 
     private void AddPhrase_Click(object sender, RoutedEventArgs e) => AddPhrase();
-
-    private void FileTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (FolderPanel is null || DocumentView is null) return;
-        var documents = FileTypeBox.SelectedIndex == 1;
-        FolderPanel.Visibility = documents ? Visibility.Collapsed : Visibility.Visible;
-        DocumentView.Visibility = documents ? Visibility.Visible : Visibility.Collapsed;
-    }
 
     private void ShowTodoInput()
     {

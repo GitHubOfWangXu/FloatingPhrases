@@ -1,5 +1,7 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -85,6 +87,7 @@ internal static class LayoutChecks
         ]);
         Find<ContentControl>("DocumentView").Content = new DocumentListView(documentStore, new DocumentLauncher(null, null));
         var tabs = Find<TabControl>("MainTabs");
+        var fileTabs = Find<TabControl>("FileTabs");
         var commandStore = new CommandStore(Path.Combine(output, "sample-commands.json"));
         commandStore.Save([
             new CommandShortcut { Name = "查看目录", Text = "Get-ChildItem", WorkingDirectory = @"D:\Projects\Sample" },
@@ -93,6 +96,8 @@ internal static class LayoutChecks
         ]);
         Find<ContentControl>("CommandView").Content = new CommandListView(commandStore);
         if (tabs.Items.Count != 5) throw new InvalidOperationException("Expected exactly five visible tabs");
+        if (fileTabs.Items.Count != 2 || fileTabs.SelectedIndex != 0)
+            throw new InvalidOperationException("Expected two file tabs with folders selected by default");
         foreach (var width in new[] { 370, 430 })
         foreach (var dpi in new[] { 96, 144, 192 })
         for (var tab = 0; tab < 6; tab++)
@@ -100,12 +105,33 @@ internal static class LayoutChecks
             view.Width = width;
             view.Height = 650;
             tabs.SelectedIndex = tab == 5 ? 1 : tab;
-            Find<ComboBox>("FileTypeBox").SelectedIndex = tab == 5 ? 1 : 0;
-            Find<Grid>("FolderPanel").Visibility = tab == 5 ? Visibility.Collapsed : Visibility.Visible;
-            Find<ContentControl>("DocumentView").Visibility = tab == 5 ? Visibility.Visible : Visibility.Collapsed;
+            fileTabs.SelectedIndex = tab == 5 ? 0 : 1;
             view.Measure(new Size(width, 650));
             view.Arrange(new Rect(0, 0, width, 650));
             view.UpdateLayout();
+            if (tab is 1 or 5)
+            {
+                foreach (TabItem header in fileTabs.Items)
+                {
+                    var bounds = header.TransformToAncestor(view).TransformBounds(new Rect(header.RenderSize));
+                    if (bounds.Left < 0 || bounds.Right > width || bounds.Height <= 0)
+                        throw new InvalidOperationException($"File tab {header.Header} is clipped at width {width}");
+                }
+                var selectedIndex = tab == 5 ? 1 : 0;
+                var target = (TabItem)fileTabs.Items[selectedIndex];
+                var peer = new TabItemAutomationPeer(target, new TabControlAutomationPeer(fileTabs));
+                ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
+                view.UpdateLayout();
+                if (fileTabs.SelectedIndex != selectedIndex || !ReferenceEquals(fileTabs.SelectedContent, target.Content)
+                    || view.IsAncestorOf(Find<Grid>("FolderPanel")) != (selectedIndex == 0)
+                    || view.IsAncestorOf(Find<ContentControl>("DocumentView")) != (selectedIndex == 1))
+                    throw new InvalidOperationException("One tab selection must switch to the matching file list");
+                tabs.SelectedIndex = 2;
+                tabs.SelectedIndex = 1;
+                view.UpdateLayout();
+                if (fileTabs.SelectedIndex != selectedIndex)
+                    throw new InvalidOperationException("Returning to files must retain the selected file tab");
+            }
             foreach (var name in new[] { "ModeBox", "OpacitySlider", "OpacityValueText" })
             {
                 var element = Find<FrameworkElement>(name);
@@ -131,7 +157,7 @@ internal static class LayoutChecks
             using var file = File.Create(Path.Combine(output, $"ui-{width}-{dpi}-{tab}.png"));
             encoder.Save(file);
         }
-        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: five tabs plus Markdown view; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar and Markdown bounds. Generic sample data. No desktop input. Code-behind actions checked separately.");
+        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: five main tabs and two file tabs; automation selection in both directions and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar, file tabs and Markdown bounds. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
         Console.WriteLine("UI layout checks passed; 36 images exported.");
     }
 }
