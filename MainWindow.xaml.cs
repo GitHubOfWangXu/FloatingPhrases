@@ -139,8 +139,16 @@ public partial class MainWindow : Window
         menu.Items.Add("显示 / 隐藏", null, (_, _) => Dispatcher.Invoke(ToggleVisibility));
         menu.Items.Add("新增短语", null, (_, _) => Dispatcher.Invoke(AddPhrase));
         menu.Items.Add("新增文件夹", null, (_, _) => Dispatcher.Invoke(AddFolder));
+        menu.Items.Add("新增 Markdown", null, (_, _) => Dispatcher.Invoke(() =>
+        {
+            _edgeDock.Expand();
+            MainTabs.SelectedIndex = 1;
+            FileTypeBox.SelectedIndex = 1;
+            DocumentView.BrowseFiles();
+        }));
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
         menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
+        menu.Items.Add("新增命令", null, (_, _) => Dispatcher.Invoke(ShowCommandInput));
         menu.Items.Add(new Forms.ToolStripSeparator());
         var modes = new Forms.ToolStripMenuItem("窗口模式");
         modes.DropDownItems.Add("普通", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Normal)));
@@ -224,7 +232,11 @@ public partial class MainWindow : Window
 
     private void FocusCurrentSearch()
     {
-        if (TodoTab.IsSelected)
+        if (CommandTab.IsSelected)
+        {
+            CommandView.FocusSearch();
+        }
+        else if (TodoTab.IsSelected)
         {
             TodoView.FocusInput();
         }
@@ -234,7 +246,8 @@ public partial class MainWindow : Window
         }
         else if (MainTabs.SelectedIndex == 1)
         {
-            FolderSearchBox.Focus();
+            if (FileTypeBox.SelectedIndex == 1) DocumentView.FocusSearch();
+            else FolderSearchBox.Focus();
         }
         else
         {
@@ -314,6 +327,7 @@ public partial class MainWindow : Window
     {
         _edgeDock.Expand();
         MainTabs.SelectedIndex = 1;
+        FileTypeBox.SelectedIndex = 0;
         var editor = new FolderEditorWindow { Owner = this };
         if (editor.ShowDialog() != true)
         {
@@ -351,7 +365,11 @@ public partial class MainWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        if (TodoTab.IsSelected)
+        if (CommandTab.IsSelected)
+        {
+            ShowCommandInput();
+        }
+        else if (TodoTab.IsSelected)
         {
             ShowTodoInput();
         }
@@ -361,7 +379,8 @@ public partial class MainWindow : Window
         }
         else if (MainTabs.SelectedIndex == 1)
         {
-            AddFolder();
+            if (FileTypeBox.SelectedIndex == 1) DocumentView.BrowseFiles();
+            else AddFolder();
         }
         else
         {
@@ -371,6 +390,14 @@ public partial class MainWindow : Window
 
     private void AddPhrase_Click(object sender, RoutedEventArgs e) => AddPhrase();
 
+    private void FileTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (FolderPanel is null || DocumentView is null) return;
+        var documents = FileTypeBox.SelectedIndex == 1;
+        FolderPanel.Visibility = documents ? Visibility.Collapsed : Visibility.Visible;
+        DocumentView.Visibility = documents ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void ShowTodoInput()
     {
         if (_settings.Mode == WindowMode.ClickThrough) SetWindowMode(WindowMode.Floating);
@@ -379,6 +406,15 @@ public partial class MainWindow : Window
         Activate();
         MainTabs.SelectedItem = TodoTab;
         Dispatcher.BeginInvoke(new Action(TodoView.FocusInput), DispatcherPriority.Input);
+    }
+    private void ShowCommandInput()
+    {
+        if (_settings.Mode == WindowMode.ClickThrough) SetWindowMode(WindowMode.Floating);
+        _edgeDock.Expand();
+        Show();
+        Activate();
+        MainTabs.SelectedItem = CommandTab;
+        CommandView.AddCommand();
     }
     private void AddFolder_Click(object sender, RoutedEventArgs e) => AddFolder();
     private void AddApp_Click(object sender, RoutedEventArgs e) => AddApp();
@@ -488,25 +524,14 @@ public partial class MainWindow : Window
     {
         try
         {
-            var existingPaths = _apps
-                .Select(app => app.Path)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var imported = DesktopAppImporter.FindApps()
-                .Where(app => existingPaths.Add(app.Path))
-                .ToList();
-
-            foreach (var app in imported)
-            {
-                _apps.Add(app);
-            }
-
-            if (imported.Count == 0)
+            var added = DesktopAppImporter.AddNewApps(_apps, DesktopAppImporter.FindApps());
+            if (added == 0)
             {
                 SetStatus("桌面没有新的软件快捷方式");
                 return;
             }
 
-            SaveApps($"已导入 {imported.Count} 个桌面软件");
+            SaveApps($"已导入 {added} 个桌面软件");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or COMException)
         {

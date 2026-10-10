@@ -120,7 +120,7 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Floating Phrases" FontSize="17" FontWeight="SemiBold" Foreground="#253047" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="短语 · 文件夹 · 软件 · 待办" FontSize="11" Foreground="#79839A" Margin="0,3,0,0" />
+                        <TextBlock Text="短语 · 文件 · 软件 · 待办 · 命令" FontSize="11" Foreground="#79839A" Margin="0,3,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="＋" Style="{StaticResource IconButton}" FontSize="20" ToolTip="新增当前类型" Click="Add_Click" />
@@ -224,7 +224,19 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="文件夹" ToolTip="本地文件夹">
+                <TabItem Header="文件" ToolTip="文件夹与 Markdown 快捷入口">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <ComboBox x:Name="FileTypeBox" Margin="4,8,4,0" Height="32"
+                                  SelectedIndex="0" SelectionChanged="FileTypeBox_SelectionChanged"
+                                  ToolTip="切换文件夹与 Markdown 列表">
+                            <ComboBoxItem Content="文件夹" />
+                            <ComboBoxItem Content="Markdown" />
+                        </ComboBox>
+                        <Grid x:Name="FolderPanel" Grid.Row="1">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="62" />
@@ -298,6 +310,9 @@
                                 </ItemsControl>
                             </ScrollViewer>
                         </Grid>
+                    </Grid>
+                        </Grid>
+                        <local:DocumentListView x:Name="DocumentView" Grid.Row="1" Visibility="Collapsed" />
                     </Grid>
                 </TabItem>
 
@@ -397,6 +412,9 @@
 
                 <TabItem x:Name="TodoTab" Header="待办清单">
                     <local:TodoListView x:Name="TodoView" />
+                </TabItem>
+                <TabItem x:Name="CommandTab" Header="命令" ToolTip="保存并在终端运行常用命令">
+                    <local:CommandListView x:Name="CommandView" />
                 </TabItem>
             </TabControl>
 

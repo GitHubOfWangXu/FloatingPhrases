@@ -2,6 +2,7 @@ namespace FloatingPhrases;
 
 public static class AppCategories
 {
+    public const string Custom = "自定义";
     public const string Development = "开发工具";
     public const string Office = "办公沟通";
     public const string Browsing = "浏览阅读";
@@ -12,6 +13,7 @@ public static class AppCategories
 
     public static IReadOnlyList<string> All { get; } =
     [
+        Custom,
         Development,
         Office,
         Browsing,

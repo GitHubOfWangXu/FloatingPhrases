@@ -10,6 +10,22 @@ public static class DesktopAppImporter
         ".exe", ".com", ".bat", ".cmd", ".msi"
     };
 
+    public static int AddNewApps(ICollection<AppShortcut> apps, IEnumerable<AppShortcut> desktopApps)
+    {
+        var existingPaths = apps.Select(app => app.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var added = 0;
+        foreach (var app in desktopApps)
+        {
+            if (existingPaths.Add(app.Path))
+            {
+                apps.Add(app);
+                added++;
+            }
+        }
+
+        return added;
+    }
+
     public static IReadOnlyList<AppShortcut> FindApps()
     {
         var results = new List<AppShortcut>();

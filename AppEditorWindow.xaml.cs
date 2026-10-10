@@ -12,7 +12,7 @@ public partial class AppEditorWindow : Window
     {
         InitializeComponent();
         CategoryBox.ItemsSource = AppCategories.All;
-        CategoryBox.SelectedItem = AppCategories.Other;
+        CategoryBox.SelectedItem = AppCategories.Custom;
 
         if (shortcut is not null)
         {
@@ -56,8 +56,6 @@ public partial class AppEditorWindow : Window
                 NameBox.Text = Path.GetFileNameWithoutExtension(dialog.FileName)
                     .Replace(" - 快捷方式", "", StringComparison.CurrentCultureIgnoreCase);
             }
-
-            CategoryBox.SelectedItem = AppCategories.Infer(NameBox.Text.Trim(), dialog.FileName);
         }
     }
 

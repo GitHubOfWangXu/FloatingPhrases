@@ -1,10 +1,24 @@
-# Repository guidance
+# 项目协作规范
 
-Floating Phrases is a Windows-only WPF application targeting .NET 8. Keep changes small and preserve the existing local-only, account-free design.
+本文件保存 Floating Phrases 的项目约定；通用授权、验收方式和本机目录规则沿用上级指令。沟通、文档及人工提交说明默认使用中文，命令、代码标识符和必要技术字面量保留原文。
 
-Before changing behavior, inspect the affected XAML, code-behind, storage class, and the self-test coverage. Preserve backward compatibility for JSON files under `%APPDATA%\FloatingPhrases`; add a migration and a regression check when a stored shape must change.
+## 技术与产品边界
 
-Validate changes with:
+- 项目是仅面向 Windows 的 WPF 应用，目标框架为 .NET 8；保持本地运行、无需账号的设计。
+- 优先复用现有控件、存储类和 .NET / Windows 原生能力，保持修改范围与需求相称；不为未来假设增加抽象或依赖。
+- 修改行为前，检查相关 XAML、代码后置文件、实际调用方、存储类及自检覆盖，确认根因和责任入口后再改动。
+
+## 数据与交互
+
+- 兼容 `%APPDATA%\FloatingPhrases` 下已有 JSON。改变存储结构或既有字段含义时，提供兼容读取或迁移，并增加回归检查；保留原文件恢复能力。
+- 保存失败时保留原列表和用户输入，不将尚未落盘的修改显示为成功；复用临时文件写入及 `.bak` 备份约定。
+- Markdown 正文保留在原目录，快捷入口只记录路径和打开偏好。按用户选定的编辑器打开，不根据文件是否位于知识库改变选择；删除入口不得删除原文件。
+- 软件安装路径由本机发现或用户选择，不在源码中写死机器路径。命令入口必须经过现有执行确认流程，保存或导入命令不代表执行授权。
+- 如涉及文本选区采集，只使用 Windows UI Automation 暴露的选区文本；不得加入 OCR、权限绕过或整篇文档采集。
+
+## 验证
+
+验收方式遵循上级 `AGENTS.md` 的“验收方式选择”，沿用用户在本任务中已明确的选择。按影响范围执行检查；纯文档修改检查内容与差异，行为修改执行构建及相关自检：
 
 ```powershell
 dotnet build .\FloatingPhrases.csproj -c Release
@@ -12,4 +26,21 @@ dotnet run --project .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj 
 git diff --check
 ```
 
-Use generic sample paths and data. Keep credentials, personal content, machine-specific absolute paths, generated output, and `%APPDATA%` data out of Git. Selection capture must stay within text exposed by Windows UI Automation and must not add OCR, permission bypasses, or whole-document collection.
+- 界面改动使用现有布局导出检查，必要时补充真实控件事件或运行验收；布局渲染、编译成功与实际交互验收分别报告。
+- 运行中的程序锁定输出文件时，使用独立构建输出目录并说明实际命令，不为构建强行结束用户进程。
+- 测试和界面样例使用通用路径、数据和临时目录，不改写真实个人笔记或业务数据。
+
+## Git 与隐私
+
+- 保留已有改动、暂存内容和未跟踪文件；只暂存、提交本任务可明确归属的差异，不使用全仓暂存或清理处理无关工作。
+- 凭据、个人正文、机器专属绝对路径、生成输出及 `%APPDATA%` 数据不得进入 Git。
+- 提交前检查实际差异、文件范围及提交说明语言；推送后回读远端结果，不能只凭本地提交或命令退出码声称发布完成。
+
+## 推送与受保护分支
+
+本节授权仅适用于本仓库。用户请求向明确指定或已经确立的目标分支推送时，包含完成该分支更新所需的正常步骤，无需逐步重复确认：
+
+- 先核对远端、目标分支、分支保护、已有 PR 和本任务提交范围。允许直接推送时正常推送；推送功能分支本身不代表允许合并到 `main`。
+- 目标分支要求 PR 时，创建或更新本任务分支与 PR，等待必需检查，修复本任务导致的失败；满足保护条件后正常合并，并回读远端目标提交和检查状态。
+- 操作仅限用户请求的目标及已授权变更。不得强制推送、改写历史、修改或绕过分支保护、代替其他审查人批准、部署，或操作其他仓库。
+- 用户只要求创建 PR 时，不得自行合并。仅在目标或提交范围不明、不可逆风险需要决定，或外部审批及权限确实阻塞时询问。

@@ -1,0 +1,86 @@
+<UserControl x:Class="FloatingPhrases.DocumentListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FloatingPhrases"
+             AllowDrop="True" PreviewDragOver="Files_DragOver" PreviewDrop="Files_Drop">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="62" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid Margin="4,12,4,10">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="74"/></Grid.ColumnDefinitions>
+            <TextBox x:Name="SearchBox" Style="{DynamicResource SearchBoxStyle}" TextChanged="Search_Changed" ToolTip="搜索 Markdown 名称或路径" />
+            <TextBlock Text="搜索 Markdown 名称或路径" Foreground="#8B94A8" Margin="13,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                </Style></TextBlock.Style>
+            </TextBlock>
+            <Button x:Name="AddButton" Grid.Column="2" Content="新增" Style="{DynamicResource AddButton}" Click="Add_Click" />
+        </Grid>
+        <Grid Grid.Row="1">
+            <TextBlock x:Name="EmptyHint" Text="选择或拖入 .md 文件添加快捷入口" TextWrapping="Wrap"
+                       Margin="10" Foreground="#8B94A8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="DocumentList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Tag="{Binding Item}" Margin="4,0,4,9">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="用 VS Code 打开" Tag="vscode" Click="Menu_Click" />
+                                        <MenuItem Header="用 Obsidian 打开" Tag="obsidian" Click="Menu_Click" />
+                                        <Separator />
+                                        <MenuItem Header="打开所在文件夹" Tag="folder" Click="Menu_Click" />
+                                        <MenuItem Header="复制路径" Tag="copy" Click="Menu_Click" />
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                                <Button Tag="{Binding Item}" Style="{DynamicResource CardButton}" Click="Open_Click"
+                                        PreviewMouseLeftButtonDown="Row_MouseDown" PreviewMouseMove="Row_MouseMove"
+                                        DragOver="Row_DragOver" Drop="Row_Drop" AllowDrop="True"
+                                        ToolTip="点击打开；右键选择软件；按住拖动排序">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#29344D" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Editor}" FontSize="11" Foreground="#4462E8" Margin="0,4,0,0" />
+                                        <TextBlock Text="{Binding Item.Path}" FontSize="11" Foreground="#727C91" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Button>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <TextBlock Text="⋮⋮" Foreground="#9AA2B3" FontSize="14" VerticalAlignment="Center" IsHitTestVisible="False" />
+                                    <Button Content="改" Tag="{Binding Item}" ToolTip="编辑快捷入口" Style="{DynamicResource ItemAction}" Click="Edit_Click" />
+                                    <Button Content="删" Tag="{Binding Item}" ToolTip="删除快捷入口，不删除文件" Foreground="#C24E5B" Style="{DynamicResource ItemAction}" Click="Delete_Click" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+        <TextBlock x:Name="FeedbackText" Grid.Row="2" Margin="6,4,6,6" FontSize="11" TextWrapping="Wrap" Foreground="#65708A" />
+        <Border x:Name="EditorPanel" Grid.RowSpan="2" Visibility="Collapsed" VerticalAlignment="Top" Margin="4,12,4,0"
+                Padding="14" Background="#EEF1FA" BorderBrush="#D8DDEA" BorderThickness="1" CornerRadius="10">
+            <StackPanel>
+                <TextBlock Text="编辑 Markdown 快捷入口" FontWeight="SemiBold" Foreground="#253047" />
+                <TextBlock Text="名称" Margin="0,12,0,4" />
+                <TextBox x:Name="NameBox" Height="32" Padding="8,5" />
+                <TextBlock Text="文件路径" Margin="0,10,0,4" />
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="PathBox" Height="32" Padding="8,5" />
+                    <Button Grid.Column="1" Content="选择…" Margin="6,0,0,0" Click="BrowsePath_Click" />
+                </Grid>
+                <TextBlock Text="默认打开方式" Margin="0,10,0,4" />
+                <ComboBox x:Name="OpenModeBox" Height="32" SelectedIndex="0" SelectedValuePath="Tag">
+                    <ComboBoxItem Content="Obsidian（默认）" Tag="{x:Static local:DocumentOpenMode.Obsidian}" />
+                    <ComboBoxItem Content="VS Code" Tag="{x:Static local:DocumentOpenMode.VSCode}" />
+                </ComboBox>
+                <CheckBox x:Name="PinnedBox" Content="置顶这个文档" Margin="0,12,0,12" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="CancelButton" Content="取消" Width="72" Height="32" Margin="0,0,10,0" Click="Cancel_Click" />
+                    <Button x:Name="SaveButton" Content="保存" Width="72" Height="32" Background="#4462E8" Foreground="White" Click="Save_Click" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

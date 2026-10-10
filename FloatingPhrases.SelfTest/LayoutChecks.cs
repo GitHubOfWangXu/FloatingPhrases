@@ -42,6 +42,8 @@ internal static class LayoutChecks
         foreach (var attr in root.DescendantsAndSelf().Attributes().Where(a => eventNames.Contains(a.Name.LocalName)).ToList()) attr.Remove();
         var todo = root.Descendants().Single(e => e.Name.LocalName == "TodoListView");
         todo.Name = ui + "ContentControl";
+        root.Descendants().Single(e => e.Name.LocalName == "CommandListView").Name = ui + "ContentControl";
+        root.Descendants().Single(e => e.Name.LocalName == "DocumentListView").Name = ui + "ContentControl";
         var view = (UserControl)XamlReader.Parse(doc.ToString());
         T Find<T>(string name) => (T)view.FindName(name);
         Find<ItemsControl>("PhraseList").ItemsSource = new[] {
@@ -75,15 +77,32 @@ internal static class LayoutChecks
             new TodoItem { Text = "发送最新交付文件", IsCompleted = true }
         });
         Find<ContentControl>("TodoView").Content = new TodoListView(store);
+        var documentStore = new DocumentStore(Path.Combine(output, "sample-documents.json"));
+        documentStore.Save([
+            new DocumentShortcut { Name = "项目使用说明", Path = @"D:\Projects\Sample\README.md", IsPinned = true },
+            new DocumentShortcut { Name = "学习笔记", Path = @"D:\Knowledge\学习笔记.md" },
+            new DocumentShortcut { Name = "设计方案", Path = @"D:\Projects\Sample\docs\设计方案.md" }
+        ]);
+        Find<ContentControl>("DocumentView").Content = new DocumentListView(documentStore, new DocumentLauncher(null, null));
         var tabs = Find<TabControl>("MainTabs");
-        if (tabs.Items.Count != 4) throw new InvalidOperationException("Expected exactly four visible tabs");
+        var commandStore = new CommandStore(Path.Combine(output, "sample-commands.json"));
+        commandStore.Save([
+            new CommandShortcut { Name = "查看目录", Text = "Get-ChildItem", WorkingDirectory = @"D:\Projects\Sample" },
+            new CommandShortcut { Name = "启动开发服务", Text = "npm run dev", WorkingDirectory = @"D:\Projects\Sample" },
+            new CommandShortcut { Name = "检查 Git 状态", Text = "git status", WorkingDirectory = @"D:\Projects\Sample", Shell = CommandShell.Cmd }
+        ]);
+        Find<ContentControl>("CommandView").Content = new CommandListView(commandStore);
+        if (tabs.Items.Count != 5) throw new InvalidOperationException("Expected exactly five visible tabs");
         foreach (var width in new[] { 370, 430 })
         foreach (var dpi in new[] { 96, 144, 192 })
-        for (var tab = 0; tab < 4; tab++)
+        for (var tab = 0; tab < 6; tab++)
         {
             view.Width = width;
             view.Height = 650;
-            tabs.SelectedIndex = tab;
+            tabs.SelectedIndex = tab == 5 ? 1 : tab;
+            Find<ComboBox>("FileTypeBox").SelectedIndex = tab == 5 ? 1 : 0;
+            Find<Grid>("FolderPanel").Visibility = tab == 5 ? Visibility.Collapsed : Visibility.Visible;
+            Find<ContentControl>("DocumentView").Visibility = tab == 5 ? Visibility.Visible : Visibility.Collapsed;
             view.Measure(new Size(width, 650));
             view.Arrange(new Rect(0, 0, width, 650));
             view.UpdateLayout();
@@ -94,6 +113,17 @@ internal static class LayoutChecks
                 if (bounds.Left < 0 || bounds.Right > width || bounds.Height <= 0)
                     throw new InvalidOperationException($"{name} is clipped at width {width}");
             }
+            if (tab == 5)
+            {
+                var documents = (DocumentListView)Find<ContentControl>("DocumentView").Content;
+                foreach (var name in new[] { "SearchBox", "AddButton", "DocumentList" })
+                {
+                    var element = (FrameworkElement)documents.FindName(name);
+                    var bounds = element.TransformToAncestor(view).TransformBounds(new Rect(element.RenderSize));
+                    if (bounds.Left < 0 || bounds.Right > width || bounds.Height <= 0)
+                        throw new InvalidOperationException($"Markdown {name} is clipped at width {width}");
+                }
+            }
             var bitmap = new RenderTargetBitmap(width * dpi / 96, 650 * dpi / 96, dpi, dpi, PixelFormats.Pbgra32);
             bitmap.Render(view);
             var encoder = new PngBitmapEncoder();
@@ -101,7 +131,7 @@ internal static class LayoutChecks
             using var file = File.Create(Path.Combine(output, $"ui-{width}-{dpi}-{tab}.png"));
             encoder.Save(file);
         }
-        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: four tabs; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar bounds. Generic sample data. No desktop input. Code-behind actions not exercised.");
-        Console.WriteLine("UI layout checks passed; 24 images exported.");
+        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: five tabs plus Markdown view; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar and Markdown bounds. Generic sample data. No desktop input. Code-behind actions checked separately.");
+        Console.WriteLine("UI layout checks passed; 36 images exported.");
     }
 }
