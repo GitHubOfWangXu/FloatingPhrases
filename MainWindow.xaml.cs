@@ -141,6 +141,7 @@ public partial class MainWindow : Window
         menu.Items.Add("新增文件夹", null, (_, _) => Dispatcher.Invoke(AddFolder));
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
         menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
+        menu.Items.Add("新增命令", null, (_, _) => Dispatcher.Invoke(ShowCommandInput));
         menu.Items.Add(new Forms.ToolStripSeparator());
         var modes = new Forms.ToolStripMenuItem("窗口模式");
         modes.DropDownItems.Add("普通", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Normal)));
@@ -224,7 +225,11 @@ public partial class MainWindow : Window
 
     private void FocusCurrentSearch()
     {
-        if (TodoTab.IsSelected)
+        if (CommandTab.IsSelected)
+        {
+            CommandView.FocusSearch();
+        }
+        else if (TodoTab.IsSelected)
         {
             TodoView.FocusInput();
         }
@@ -351,7 +356,11 @@ public partial class MainWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        if (TodoTab.IsSelected)
+        if (CommandTab.IsSelected)
+        {
+            ShowCommandInput();
+        }
+        else if (TodoTab.IsSelected)
         {
             ShowTodoInput();
         }
@@ -379,6 +388,15 @@ public partial class MainWindow : Window
         Activate();
         MainTabs.SelectedItem = TodoTab;
         Dispatcher.BeginInvoke(new Action(TodoView.FocusInput), DispatcherPriority.Input);
+    }
+    private void ShowCommandInput()
+    {
+        if (_settings.Mode == WindowMode.ClickThrough) SetWindowMode(WindowMode.Floating);
+        _edgeDock.Expand();
+        Show();
+        Activate();
+        MainTabs.SelectedItem = CommandTab;
+        CommandView.AddCommand();
     }
     private void AddFolder_Click(object sender, RoutedEventArgs e) => AddFolder();
     private void AddApp_Click(object sender, RoutedEventArgs e) => AddApp();

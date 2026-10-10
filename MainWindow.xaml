@@ -120,7 +120,7 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Floating Phrases" FontSize="17" FontWeight="SemiBold" Foreground="#253047" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="短语 · 文件夹 · 软件 · 待办" FontSize="11" Foreground="#79839A" Margin="0,3,0,0" />
+                        <TextBlock Text="短语 · 文件夹 · 软件 · 待办 · 命令" FontSize="11" Foreground="#79839A" Margin="0,3,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="＋" Style="{StaticResource IconButton}" FontSize="20" ToolTip="新增当前类型" Click="Add_Click" />
@@ -397,6 +397,9 @@
 
                 <TabItem x:Name="TodoTab" Header="待办清单">
                     <local:TodoListView x:Name="TodoView" />
+                </TabItem>
+                <TabItem x:Name="CommandTab" Header="命令" ToolTip="保存并在终端运行常用命令">
+                    <local:CommandListView x:Name="CommandView" />
                 </TabItem>
             </TabControl>
 
