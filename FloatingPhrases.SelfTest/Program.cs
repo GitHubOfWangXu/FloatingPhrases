@@ -6,6 +6,12 @@ if (args.Length == 3 && args[0] == "--ui-export")
     return 0;
 }
 
+if (args.Length == 2 && args[0] == "--document-open-smoke")
+{
+    DocumentChecks.OpenInstalledEditor(args[1]);
+    return 0;
+}
+
 if (args.Length == 1 && args[0] is "--app-visual" or "--todo-app-visual")
 {
     DockVisualChecks.RunApp(args[0] == "--todo-app-visual" ? "TodoTab" : null);
@@ -39,6 +45,8 @@ try
     }
     CommandChecks.Run(testDirectory);
     TodoChecks.Run(testDirectory, args.Length == 2 && args[0] == "--todo-screenshot" ? Path.GetFullPath(args[1]) : null);
+    DocumentChecks.Run(testDirectory);
+    DocumentViewChecks.Run(testDirectory);
     var memory = new MemoryUsage(16UL * 1073741824, 4UL * 1073741824);
     Require(memory.UsedBytes == 12UL * 1073741824 && memory.UsedPercent == 75,
         "系统内存应按总量减去可用量计算，不能误用本进程内存");

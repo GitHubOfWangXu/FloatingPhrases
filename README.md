@@ -4,7 +4,7 @@
 
 把每天反复找的东西，放到桌面边上。
 
-Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，项目文件夹和软件集中打开，临时待办随手记。不用时贴边收起，用时悬停展开。数据保存在本机，无需注册账号。
+Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，项目文件夹、Markdown 文档和软件集中打开，临时待办随手记。不用时贴边收起，用时悬停展开。数据保存在本机，无需注册账号。
 
 适合经常重复回复、切换项目目录，以及希望随手记录待办的 Windows 用户。支持搜索、置顶与拖动排序；这是一个轻量桌面入口，不是跨设备同步或团队任务管理工具。
 
@@ -44,6 +44,8 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 
 ## 本地文件夹
 
+在“文件”页选择“文件夹”，继续使用原有文件夹快捷入口。
+
 - 点击文件夹卡片：使用 Windows 资源管理器打开该目录。
 - 点击“新增”：填写名称并通过“选择…”挑选本地文件夹。
 - 名称不填时自动使用文件夹名称。
@@ -55,6 +57,19 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 保存时文件夹必须真实存在。如果文件夹后来被移动或删除，点击卡片会提示修改或删除快捷入口。
 
 置顶项始终显示在普通项之前。拖动排序需要在同一区间内进行：置顶项之间可以互相排序，普通项之间可以互相排序。
+
+## Markdown 文档
+
+- 在“文件”页切换到“Markdown”，点击“新增”选择一个或多个 `.md` / `.markdown` 文件，也可以把文件从资源管理器拖入列表；重复文件会跳过。
+- 点击卡片打开原文件：自动模式下，已登记 Obsidian Vault 内的 `.md` 文件使用 Obsidian，其余文件（包括 `.markdown`）使用 VS Code。程序使用本机 Obsidian 登记信息和软件安装入口，无需额外插件。
+- 右键卡片可临时选择 VS Code 或 Obsidian，也可打开所在文件夹、复制路径；临时选择不改变默认打开方式。库外文件不能通过 Obsidian 入口打开。
+- 点击“改”编辑名称、路径、置顶状态和默认打开方式。搜索匹配名称与路径；按住卡片拖动可在同一置顶状态内调整顺序。
+- 点击“删”只删除快捷入口，不删除 Markdown 原文件。文件被移动或删除后，打开时会提示重新选择。
+- 文档正文由外部编辑器直接保存到原目录，Floating Phrases 不保存正文副本。保存快捷入口失败时保留原列表和当前编辑内容。
+
+VS Code 需安装正式版；程序会从 PATH、`vscode` 协议或常规安装目录查找。Obsidian 需已运行过并登记对应 Vault，且注册 `obsidian` 打开协议。安装或修改 Vault 登记后，重新启动 Floating Phrases。
+
+VS Code 原生支持 Markdown 预览：按 `Ctrl + Shift + V` 切换预览；先按 `Ctrl + K` 再按 `V` 打开旁侧预览。包含 Wiki 链接或嵌入的知识库笔记适合在 Obsidian 查看；移动和重命名笔记优先在 Obsidian 内进行。
 
 ## 本地软件
 
@@ -86,7 +101,7 @@ bin\Release\net8.0-windows\FloatingPhrases.exe
 
 - 模式下拉框：在普通、悬浮、穿透三种模式之间切换。
 - 透明度滑块：设置悬浮闲置或穿透时的透明度，可调范围为 20%–90%。
-- “＋”：根据当前页面新增短语、文件夹、软件、命令或输入待办；托盘菜单也提供相应新增入口。
+- “＋”：根据当前页面新增短语、文件夹、Markdown、软件、命令或输入待办；托盘菜单也提供相应新增入口。
 - “截图”：框选当前屏幕区域，并将截图复制到剪贴板。
 - “—”：隐藏到系统托盘。
 
@@ -145,6 +160,7 @@ C:\Users\你的用户名\AppData\Roaming\FloatingPhrases
 | --- | --- |
 | `phrases.json` | 常用句子 |
 | `folders.json` | 文件夹快捷入口 |
+| `documents.json` | Markdown 快捷入口、置顶、顺序与默认打开方式；不包含正文 |
 | `settings.json` | 窗口模式和闲置透明度 |
 | `apps.json` | 本地软件快捷入口、分类和顺序 |
 | `todos.json` | 待办内容、进度百分比和完成状态；旧数据按完成状态兼容为 0% 或 100% |
@@ -153,6 +169,7 @@ C:\Users\你的用户名\AppData\Roaming\FloatingPhrases
 | `todos.json.bak` | 上一次保存前的待办备份 |
 | `phrases.json.bak` | 上一次保存前的短语备份 |
 | `folders.json.bak` | 上一次保存前的文件夹备份 |
+| `documents.json.bak` | 上一次保存前的 Markdown 入口备份 |
 | `settings.json.bak` | 上一次保存前的窗口设置备份 |
 | `apps.json.bak` | 上一次保存前的软件入口备份 |
 | `*.corrupt-时间.json` | 自动保留的损坏数据文件 |
@@ -179,7 +196,7 @@ dotnet build .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj -c Relea
 dotnet .\FloatingPhrases.SelfTest\bin\Release\net8.0-windows\FloatingPhrases.SelfTest.dll --ui-export . bin\ui-preview
 ```
 
-导出覆盖 370/430 逻辑像素宽度、96/144/192 DPI 与五个页面。此入口检查布局，不代替点击复制、软件启动或贴边交互的运行验收。
+导出覆盖 370/430 逻辑像素宽度、96/144/192 DPI、五个页面与文件页的 Markdown 列表。此入口检查布局，不代替点击复制、软件启动或贴边交互的运行验收。
 
 ## 构建和自检
 
@@ -191,6 +208,8 @@ dotnet run --project .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj 
 ```
 
 自检覆盖短语、文件夹、软件入口和窗口设置的保存读取，软件分类归一化、透明度安全范围、拖动顺序、置顶状态、损坏 JSON 备份恢复，以及多行短语的空白字符保留。
+
+Markdown 自检使用临时文件和真实控件事件，覆盖添加去重、搜索、编辑与取消、删除、保存失败时列表一致性、重新读取、默认与临时打开方式、Vault 目录边界、启动参数转义、缺失文件和原文保留；启动动作通过注入回调检查，不实际打开外部编辑器或读取个人笔记。
 
 待办自检使用临时目录和真实控件事件，覆盖新增、编辑与取消、完成与恢复、搜索筛选、删除与撤销、重新加载，以及保存失败时的界面一致性和损坏文件恢复。
 

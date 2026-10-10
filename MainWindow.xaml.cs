@@ -139,6 +139,13 @@ public partial class MainWindow : Window
         menu.Items.Add("显示 / 隐藏", null, (_, _) => Dispatcher.Invoke(ToggleVisibility));
         menu.Items.Add("新增短语", null, (_, _) => Dispatcher.Invoke(AddPhrase));
         menu.Items.Add("新增文件夹", null, (_, _) => Dispatcher.Invoke(AddFolder));
+        menu.Items.Add("新增 Markdown", null, (_, _) => Dispatcher.Invoke(() =>
+        {
+            _edgeDock.Expand();
+            MainTabs.SelectedIndex = 1;
+            FileTypeBox.SelectedIndex = 1;
+            DocumentView.BrowseFiles();
+        }));
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
         menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
         menu.Items.Add("新增命令", null, (_, _) => Dispatcher.Invoke(ShowCommandInput));
@@ -239,7 +246,8 @@ public partial class MainWindow : Window
         }
         else if (MainTabs.SelectedIndex == 1)
         {
-            FolderSearchBox.Focus();
+            if (FileTypeBox.SelectedIndex == 1) DocumentView.FocusSearch();
+            else FolderSearchBox.Focus();
         }
         else
         {
@@ -319,6 +327,7 @@ public partial class MainWindow : Window
     {
         _edgeDock.Expand();
         MainTabs.SelectedIndex = 1;
+        FileTypeBox.SelectedIndex = 0;
         var editor = new FolderEditorWindow { Owner = this };
         if (editor.ShowDialog() != true)
         {
@@ -370,7 +379,8 @@ public partial class MainWindow : Window
         }
         else if (MainTabs.SelectedIndex == 1)
         {
-            AddFolder();
+            if (FileTypeBox.SelectedIndex == 1) DocumentView.BrowseFiles();
+            else AddFolder();
         }
         else
         {
@@ -379,6 +389,14 @@ public partial class MainWindow : Window
     }
 
     private void AddPhrase_Click(object sender, RoutedEventArgs e) => AddPhrase();
+
+    private void FileTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (FolderPanel is null || DocumentView is null) return;
+        var documents = FileTypeBox.SelectedIndex == 1;
+        FolderPanel.Visibility = documents ? Visibility.Collapsed : Visibility.Visible;
+        DocumentView.Visibility = documents ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void ShowTodoInput()
     {
