@@ -30,11 +30,13 @@ internal static class DocumentViewChecks
         File.WriteAllText(outside, "# README\n");
         var code = Path.Combine(directory, "view-Code.exe");
         File.WriteAllText(code, "不会执行");
+        var obsidian = Path.Combine(directory, "view-Obsidian.exe");
+        File.WriteAllText(obsidian, "不会执行");
         var data = Path.Combine(directory, "view-documents.json");
         var store = new DocumentStore(data);
         ProcessStartInfo? launched = null;
         string? copied = null;
-        var view = new DocumentListView(store, new DocumentLauncher([vault], code),
+        var view = new DocumentListView(store, new DocumentLauncher(obsidian, code),
             info => launched = info, text => copied = text, _ => true) { Width = 338, Height = 455 };
         T Named<T>(string name) => (T)view.FindName(name);
         void Layout()
@@ -58,6 +60,8 @@ internal static class DocumentViewChecks
         dropped.RoutedEvent = System.Windows.DragDrop.PreviewDropEvent;
         view.RaiseEvent(dropped);
         Check(store.Load().Count == 2, "添加应去重并保存入口");
+        Check(store.Load().All(item => item.OpenMode == DocumentOpenMode.Obsidian) && Named<ComboBox>("OpenModeBox").Items.Count == 2,
+            "新增文档应默认 Obsidian，打开方式只提供两个明确选项");
         view.AddPaths([inside]);
         Check(store.Load().Count == 2, "重复添加不能产生新入口");
         view.AddPaths([Path.Combine(directory, "not-markdown.txt")]);
@@ -78,15 +82,15 @@ internal static class DocumentViewChecks
         Check(Named<ItemsControl>("DocumentList").Items.Count == 1, "应按路径搜索");
         Named<TextBox>("SearchBox").Text = "";
         RowClick(inside, null);
-        Check(launched?.FileName.StartsWith("obsidian://open?") == true, "真实卡片事件应选择 Obsidian");
+        Check(launched?.FileName == obsidian && launched.ArgumentList.Single() == inside, "真实卡片事件应选择 Obsidian");
         RowClick(outside, null);
-        Check(launched?.FileName == code && launched.ArgumentList.Last() == outside, "库外真实卡片事件应选择 VS Code");
+        Check(launched?.FileName == obsidian && launched.ArgumentList.Single() == outside, "库外真实卡片事件也应默认 Obsidian");
         var card = ButtonFor(inside, null);
         var row = (Grid)card.Parent;
         var menu = row.ContextMenu;
         menu.PlacementTarget = row;
         ((MenuItem)menu.Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-        Check(launched?.FileName == code && store.Load()[0].OpenMode == DocumentOpenMode.Auto,
+        Check(launched?.FileName == code && store.Load()[0].OpenMode == DocumentOpenMode.Obsidian,
             "右键临时覆盖软件不能修改默认模式");
         ((MenuItem)menu.Items[4]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         Check(copied == inside, "复制路径应使用同一原文件");
@@ -95,16 +99,26 @@ internal static class DocumentViewChecks
         RowClick(inside, "改");
         Named<TextBox>("NameBox").Text = "置顶笔记";
         Named<CheckBox>("PinnedBox").IsChecked = true;
-        Named<ComboBox>("OpenModeBox").SelectedIndex = (int)DocumentOpenMode.VSCode;
+        Named<ComboBox>("OpenModeBox").SelectedValue = DocumentOpenMode.VSCode;
         Click("SaveButton");
         Check(store.Load().Single(item => item.Path == inside).Name == "置顶笔记" && store.Load().Single(item => item.Path == inside).IsPinned && store.Load().Single(item => item.Path == inside).OpenMode == DocumentOpenMode.VSCode,
             "编辑名称、置顶和默认打开方式应持久化");
         RowClick(outside, "改");
-        Named<ComboBox>("OpenModeBox").SelectedIndex = (int)DocumentOpenMode.Obsidian;
+        Named<ComboBox>("OpenModeBox").SelectedValue = DocumentOpenMode.Obsidian;
         Click("SaveButton");
-        Check(Named<Border>("EditorPanel").Visibility == Visibility.Visible && store.Load().Single(item => item.Path == outside).OpenMode == DocumentOpenMode.Auto,
-            "库外显式 Obsidian 应阻止保存并保留表单");
-        Click("CancelButton");
+        Check(Named<Border>("EditorPanel").Visibility == Visibility.Collapsed && store.Load().Single(item => item.Path == outside).OpenMode == DocumentOpenMode.Obsidian,
+            "库外文件应允许保存 Obsidian 作为默认方式");
+        RowClick(outside, "改");
+        Named<ComboBox>("OpenModeBox").SelectedValue = DocumentOpenMode.VSCode;
+        Click("SaveButton");
+        RowClick(outside, null);
+        Check(launched?.FileName == code && launched.ArgumentList.Last() == outside, "文件改选 VS Code 后应按保存设置打开");
+        var outsideRow = (Grid)ButtonFor(outside, null).Parent;
+        outsideRow.ContextMenu.PlacementTarget = outsideRow;
+        Check(((MenuItem)outsideRow.ContextMenu.Items[1]).IsEnabled, "库外 Obsidian 右键选项不能禁用");
+        ((MenuItem)outsideRow.ContextMenu.Items[1]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Check(launched?.FileName == obsidian && store.Load().Single(item => item.Path == outside).OpenMode == DocumentOpenMode.VSCode,
+            "库外文件可临时用 Obsidian 打开，且不覆盖已保存的 VS Code 选择");
         RowClick(inside, "改");
         Named<TextBox>("NameBox").Text = "不应保存";
         Click("CancelButton");
@@ -129,7 +143,7 @@ internal static class DocumentViewChecks
         RowClick(outside, null);
         Check(launched is null && Named<TextBlock>("FeedbackText").Text.Contains("不存在"), "丢失文件应提示而不启动软件");
         Check(File.ReadAllText(inside) == "# 笔记\n", "编辑入口与菜单不得改写笔记正文");
-        var reloaded = new DocumentListView(store, new DocumentLauncher([vault], code));
+        var reloaded = new DocumentListView(store, new DocumentLauncher(obsidian, code));
         Check(((ItemsControl)reloaded.FindName("DocumentList")).Items.Count == 1, "重启控件应读回已保存的入口");
     }
 

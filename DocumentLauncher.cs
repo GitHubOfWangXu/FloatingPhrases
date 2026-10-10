@@ -1,34 +1,21 @@
 using System.Diagnostics;
 using System.IO;
 using System.Security;
-using System.Text.Json;
 using Microsoft.Win32;
 
 namespace FloatingPhrases;
 
 public sealed class DocumentLauncher
 {
-    private readonly string[] _vaultPaths;
+    private readonly string? _obsidianExecutable;
     private readonly string? _codeExecutable;
-    private readonly bool _obsidianAvailable;
 
-    public DocumentLauncher() : this(FindVaultPaths(), FindCodeExecutable()) =>
-        _obsidianAvailable = IsProtocolRegistered("obsidian");
+    public DocumentLauncher() : this(FindRegisteredExecutable("obsidian"), FindCodeExecutable()) { }
 
-    public DocumentLauncher(IEnumerable<string>? vaultPaths, string? codeExecutable)
+    public DocumentLauncher(string? obsidianExecutable, string? codeExecutable)
     {
-        _vaultPaths = (vaultPaths ?? []).Select(TryFullPath).Where(path => path is not null)
-            .Select(path => Path.TrimEndingDirectorySeparator(path!)).ToArray();
+        _obsidianExecutable = obsidianExecutable;
         _codeExecutable = codeExecutable;
-        _obsidianAvailable = _vaultPaths.Length > 0;
-    }
-
-    public bool CanOpenInObsidian(string path)
-    {
-        var fullPath = TryFullPath(path);
-        if (fullPath is null || !Path.GetExtension(fullPath).Equals(".md", StringComparison.OrdinalIgnoreCase)) return false;
-        return _vaultPaths.Any(vault => fullPath.StartsWith(Path.EndsInDirectorySeparator(vault) ? vault : vault + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase));
     }
 
     public string GetEditorName(DocumentShortcut document) => ResolveMode(document, null) == DocumentOpenMode.Obsidian ? "Obsidian" : "VS Code";
@@ -46,17 +33,15 @@ public sealed class DocumentLauncher
     {
         var path = NormalizePath(document.Path);
         if (!File.Exists(path)) throw new IOException("文档不存在或已移动，请重新选择文件。");
-        if (ResolveMode(document, overrideMode) == DocumentOpenMode.Obsidian)
-        {
-            if (!CanOpenInObsidian(path)) throw new InvalidOperationException("此入口仅支持已登记 Obsidian 知识库内的 .md 文件，请使用 VS Code 打开。");
-            if (!_obsidianAvailable) throw new IOException("未找到 Obsidian 打开协议，请先安装并启动 Obsidian。");
-            return new ProcessStartInfo("obsidian://open?path=" + Uri.EscapeDataString(path) + "&paneType=tab") { UseShellExecute = true };
-        }
-        if (string.IsNullOrWhiteSpace(_codeExecutable) || !File.Exists(_codeExecutable))
-            throw new IOException("未找到 VS Code，请安装 VS Code 后重启应用。");
-        var info = new ProcessStartInfo(_codeExecutable) { UseShellExecute = false };
+        var mode = ResolveMode(document, overrideMode);
+        var executable = mode == DocumentOpenMode.VSCode ? _codeExecutable : _obsidianExecutable;
+        if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
+            throw new IOException(mode == DocumentOpenMode.VSCode
+                ? "未找到 VS Code，请安装 VS Code 后重启应用。"
+                : "未找到 Obsidian，请安装最新版并运行一次后重启应用。");
+        var info = new ProcessStartInfo(executable) { UseShellExecute = false };
         info.Environment.Remove("ELECTRON_RUN_AS_NODE");
-        info.ArgumentList.Add("--reuse-window");
+        if (mode == DocumentOpenMode.VSCode) info.ArgumentList.Add("--reuse-window");
         info.ArgumentList.Add(path);
         return info;
     }
@@ -64,36 +49,22 @@ public sealed class DocumentLauncher
     private DocumentOpenMode ResolveMode(DocumentShortcut document, DocumentOpenMode? overrideMode)
     {
         var mode = overrideMode ?? document.OpenMode;
-        return !Enum.IsDefined(mode) || mode == DocumentOpenMode.Auto
-            ? (CanOpenInObsidian(document.Path) ? DocumentOpenMode.Obsidian : DocumentOpenMode.VSCode) : mode;
+        return mode == DocumentOpenMode.VSCode ? DocumentOpenMode.VSCode : DocumentOpenMode.Obsidian;
     }
 
-    private static string[] FindVaultPaths()
-    {
-        var file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "obsidian", "obsidian.json");
-        try
-        {
-            if (!File.Exists(file)) return [];
-            using var json = JsonDocument.Parse(File.ReadAllText(file));
-            if (json.RootElement.ValueKind != JsonValueKind.Object ||
-                !json.RootElement.TryGetProperty("vaults", out var vaults) || vaults.ValueKind != JsonValueKind.Object) return [];
-            return vaults.EnumerateObject().Select(vault =>
-                vault.Value.ValueKind == JsonValueKind.Object && vault.Value.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String
-                    ? path.GetString() : null)
-                .Where(path => !string.IsNullOrWhiteSpace(path) && Path.IsPathFullyQualified(path))
-                .Select(TryFullPath).Where(path => path is not null && Directory.Exists(path)).Cast<string>().ToArray();
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { return []; }
-    }
-
-    private static bool IsProtocolRegistered(string protocol)
+    private static string? FindRegisteredExecutable(string protocol)
     {
         try
         {
-            using var key = Registry.ClassesRoot.OpenSubKey(protocol);
-            return key?.GetValue("URL Protocol") is not null;
+            using var key = Registry.ClassesRoot.OpenSubKey(protocol + @"\shell\open\command");
+            if (key?.GetValue(null) is string command && command.StartsWith('"'))
+            {
+                var end = command.IndexOf('"', 1);
+                if (end > 1 && File.Exists(command[1..end])) return command[1..end];
+            }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException) { return false; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException) { }
+        return null;
     }
 
     private static string? TryFullPath(string? path)
@@ -117,16 +88,7 @@ public sealed class DocumentLauncher
                 if (candidate is not null && File.Exists(candidate)) return candidate;
             }
         }
-        try
-        {
-            using var protocol = Registry.ClassesRoot.OpenSubKey(@"vscode\shell\open\command");
-            if (protocol?.GetValue(null) is string command && command.StartsWith('"'))
-            {
-                var end = command.IndexOf('"', 1);
-                if (end > 1 && File.Exists(command[1..end])) return command[1..end];
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException) { }
+        if (FindRegisteredExecutable("vscode") is { } registered) return registered;
         foreach (var root in new[] { Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) })
         {

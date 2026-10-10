@@ -131,7 +131,7 @@ public partial class DocumentListView : System.Windows.Controls.UserControl
         _editing = item;
         NameBox.Text = item.Name;
         PathBox.Text = item.Path;
-        OpenModeBox.SelectedIndex = (int)item.OpenMode;
+        OpenModeBox.SelectedValue = item.OpenMode;
         PinnedBox.IsChecked = item.IsPinned;
         FeedbackText.Text = "只修改快捷入口；正文在编辑器中修改";
         EditorPanel.Visibility = Visibility.Visible;
@@ -144,9 +144,7 @@ public partial class DocumentListView : System.Windows.Controls.UserControl
         try
         {
             var path = ValidatePath(PathBox.Text.Trim());
-            var mode = (DocumentOpenMode)OpenModeBox.SelectedIndex;
-            if (mode == DocumentOpenMode.Obsidian && !_launcher.CanOpenInObsidian(path))
-                throw new InvalidOperationException("此入口仅支持已登记 Obsidian 知识库内的 .md 文件，请选择自动或 VS Code。");
+            var mode = OpenModeBox.SelectedValue is DocumentOpenMode selected ? selected : DocumentOpenMode.Obsidian;
             if (_items.Any(item => item.Id != _editing.Id && string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("这个文档已经有快捷入口。");
             var replacement = new DocumentShortcut { Id = _editing.Id, Path = path,
@@ -175,15 +173,6 @@ public partial class DocumentListView : System.Windows.Controls.UserControl
     {
         var dialog = new OpenFileDialog { Title = "选择 Markdown 文件", Filter = "Markdown 文件|*.md;*.markdown" };
         if (dialog.ShowDialog(Window.GetWindow(this)) == true) PathBox.Text = dialog.FileName;
-    }
-
-    private void Row_ContextMenuOpening(object sender, ContextMenuEventArgs e)
-    {
-        if (sender is FrameworkElement { Tag: DocumentShortcut item, ContextMenu: { } menu })
-        {
-            ((MenuItem)menu.Items[1]).IsEnabled = _launcher.CanOpenInObsidian(item.Path);
-            ((MenuItem)menu.Items[1]).ToolTip = "仅限已登记 Obsidian 知识库内的 .md 文件";
-        }
     }
 
     private void Menu_Click(object sender, RoutedEventArgs e)

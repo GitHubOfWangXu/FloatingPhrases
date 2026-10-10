@@ -1,6 +1,7 @@
 <UserControl x:Class="FloatingPhrases.DocumentListView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FloatingPhrases"
              AllowDrop="True" PreviewDragOver="Files_DragOver" PreviewDrop="Files_Drop">
     <Grid>
         <Grid.RowDefinitions>
@@ -25,7 +26,7 @@
                 <ItemsControl x:Name="DocumentList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Tag="{Binding Item}" Margin="4,0,4,9" ContextMenuOpening="Row_ContextMenuOpening">
+                            <Grid Tag="{Binding Item}" Margin="4,0,4,9">
                                 <Grid.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="用 VS Code 打开" Tag="vscode" Click="Menu_Click" />
@@ -70,10 +71,9 @@
                     <Button Grid.Column="1" Content="选择…" Margin="6,0,0,0" Click="BrowsePath_Click" />
                 </Grid>
                 <TextBlock Text="默认打开方式" Margin="0,10,0,4" />
-                <ComboBox x:Name="OpenModeBox" Height="32" SelectedIndex="0">
-                    <ComboBoxItem Content="自动：库内 Obsidian，库外 VS Code" />
-                    <ComboBoxItem Content="VS Code" />
-                    <ComboBoxItem Content="Obsidian（仅限知识库内）" />
+                <ComboBox x:Name="OpenModeBox" Height="32" SelectedIndex="0" SelectedValuePath="Tag">
+                    <ComboBoxItem Content="Obsidian（默认）" Tag="{x:Static local:DocumentOpenMode.Obsidian}" />
+                    <ComboBoxItem Content="VS Code" Tag="{x:Static local:DocumentOpenMode.VSCode}" />
                 </ComboBox>
                 <CheckBox x:Name="PinnedBox" Content="置顶这个文档" Margin="0,12,0,12" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

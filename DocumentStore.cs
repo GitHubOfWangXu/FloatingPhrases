@@ -64,7 +64,7 @@ public sealed class DocumentStore
             Name = string.IsNullOrWhiteSpace(document.Name) ? Path.GetFileNameWithoutExtension(document.Path.Trim()) : document.Name.Trim(),
             Path = document.Path.Trim(),
             IsPinned = document.IsPinned,
-            OpenMode = Enum.IsDefined(document.OpenMode) ? document.OpenMode : DocumentOpenMode.Auto
+            OpenMode = document.OpenMode == DocumentOpenMode.VSCode ? DocumentOpenMode.VSCode : DocumentOpenMode.Obsidian
         });
     }
 
@@ -76,7 +76,7 @@ public sealed class DocumentStore
             if (reader.TokenType == JsonTokenType.String && Enum.TryParse(reader.GetString(), true, out mode) && Enum.IsDefined(mode)) return mode;
             if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var number) && Enum.IsDefined((DocumentOpenMode)number)) return (DocumentOpenMode)number;
             reader.Skip();
-            return DocumentOpenMode.Auto;
+            return DocumentOpenMode.Obsidian;
         }
 
         public override void Write(Utf8JsonWriter writer, DocumentOpenMode value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());

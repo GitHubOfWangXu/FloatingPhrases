@@ -83,7 +83,7 @@ internal static class LayoutChecks
             new DocumentShortcut { Name = "学习笔记", Path = @"D:\Knowledge\学习笔记.md" },
             new DocumentShortcut { Name = "设计方案", Path = @"D:\Projects\Sample\docs\设计方案.md" }
         ]);
-        Find<ContentControl>("DocumentView").Content = new DocumentListView(documentStore, new DocumentLauncher([@"D:\Knowledge"], null));
+        Find<ContentControl>("DocumentView").Content = new DocumentListView(documentStore, new DocumentLauncher(null, null));
         var tabs = Find<TabControl>("MainTabs");
         var commandStore = new CommandStore(Path.Combine(output, "sample-commands.json"));
         commandStore.Save([

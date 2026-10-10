@@ -26,6 +26,8 @@ internal static class DocumentChecks
         File.WriteAllText(outsidePath, content);
         var codeExecutable = Path.Combine(testDirectory, "Code.exe");
         File.WriteAllText(codeExecutable, "测试占位，不执行");
+        var obsidianExecutable = Path.Combine(testDirectory, "Obsidian.exe");
+        File.WriteAllText(obsidianExecutable, "测试占位，不执行");
         var dataPath = Path.Combine(testDirectory, "documents.json");
         var store = new DocumentStore(dataPath);
         var document = new DocumentShortcut { Name = " 测试文档 ", Path = documentPath, IsPinned = true, OpenMode = DocumentOpenMode.VSCode };
@@ -51,32 +53,50 @@ internal static class DocumentChecks
             new { path = "missing.md", openMode = "Obsidian" }
         }));
         loaded = store.Load();
-        Require(loaded.Count == 3 && loaded[0].OpenMode == DocumentOpenMode.Auto && loaded[1].OpenMode == DocumentOpenMode.Auto &&
-            loaded[2].OpenMode == DocumentOpenMode.Obsidian, "未知字符串/数字模式应归 Auto，丢失文件入口和合法模式应保留");
+        Require(loaded.Count == 3 && loaded.All(item => item.OpenMode == DocumentOpenMode.Obsidian),
+            "未知字符串/数字模式应归 Obsidian，丢失文件入口应保留");
+        var legacyJson = JsonSerializer.Serialize(new object[]
+        {
+            new { path = documentPath, openMode = "Auto" }, new { path = outsidePath, openMode = 0 },
+            new { path = outsidePath }, new { path = documentPath, openMode = "VSCode" },
+            new { path = outsidePath, openMode = "Obsidian" }
+        });
+        File.WriteAllText(dataPath, legacyJson);
+        loaded = store.Load();
+        Require(loaded.Take(3).All(item => item.OpenMode == DocumentOpenMode.Obsidian) &&
+            loaded[3].OpenMode == DocumentOpenMode.VSCode && loaded[4].OpenMode == DocumentOpenMode.Obsidian &&
+            File.ReadAllText(dataPath) == legacyJson, "旧 Auto/缺省模式应兼容为 Obsidian，保留明确选择；读取不改原文件");
+        store.Save(loaded);
+        Require(File.ReadAllText(dataPath + ".bak") == legacyJson && !File.ReadAllText(dataPath).Contains("\"Auto\""),
+            "首次保存应写入明确打开方式，并备份旧 JSON");
         File.WriteAllText(dataPath, "{broken json");
         Require(store.Load().Count == 0 && Directory.EnumerateFiles(testDirectory, "documents.corrupt-*.json").Any(), "损坏文档入口文件应保留并恢复为空列表");
 
-        var launcher = new DocumentLauncher([vault], codeExecutable);
+        var launcher = new DocumentLauncher(obsidianExecutable, codeExecutable);
         var longExtension = Path.Combine(vault, "兼容扩展.markdown");
         File.WriteAllText(longExtension, content);
-        Require(!launcher.CanOpenInObsidian(longExtension) && launcher.GetEditorName(new() { Path = longExtension }) == "VS Code",
-            "Obsidian 原生笔记仅使用 .md，库内 .markdown 应交给 VS Code");
+        Require(launcher.GetEditorName(new() { Path = longExtension }) == "Obsidian", "默认打开方式不能根据路径或扩展名切换软件");
         document.OpenMode = DocumentOpenMode.Auto;
-        Require(launcher.CanOpenInObsidian(documentPath) && !launcher.CanOpenInObsidian(outsidePath), "Vault 必须按目录边界匹配，不能误认兄弟前缀");
-        Require(!launcher.CanOpenInObsidian(Path.Combine(vault, "..", Path.GetFileName(sibling), "外部.markdown")), "父目录跳转必须先归一化再匹配 Vault");
-        Require(!launcher.CanOpenInObsidian("\0invalid.md") && launcher.GetEditorName(new() { Path = "\0invalid.md" }) == "VS Code",
-            "损坏路径不能使列表刷新崩溃");
         var obsidian = launcher.CreateStartInfo(document);
-        Require(launcher.GetEditorName(document) == "Obsidian" && obsidian.UseShellExecute &&
-            obsidian.FileName == "obsidian://open?path=" + Uri.EscapeDataString(documentPath) + "&paneType=tab", "Vault 内 Auto 应生成完整转义的新标签 Obsidian URI");
+        Require(launcher.GetEditorName(document) == "Obsidian" && !obsidian.UseShellExecute &&
+            obsidian.FileName == obsidianExecutable && obsidian.ArgumentList.SequenceEqual([documentPath]),
+            "Obsidian 应直接接收原文件路径，通过 ArgumentList 保留中文、空格和特殊字符");
         var code = launcher.CreateStartInfo(document, DocumentOpenMode.VSCode);
         Require(code.FileName == codeExecutable && !code.UseShellExecute && code.ArgumentList.SequenceEqual(["--reuse-window", documentPath]),
             "覆盖为 VS Code 应直接执行并通过 ArgumentList 完整保留中文、空格和特殊字符");
-        Require(!code.Environment.ContainsKey("ELECTRON_RUN_AS_NODE"), "VS Code 启动不能继承 Electron 的 Node 模式");
+        Require(!code.Environment.ContainsKey("ELECTRON_RUN_AS_NODE") && !obsidian.Environment.ContainsKey("ELECTRON_RUN_AS_NODE"),
+            "编辑器启动不能继承 Electron 的 Node 模式");
         var outside = new DocumentShortcut { Path = outsidePath };
-        Require(launcher.GetEditorName(outside) == "VS Code" && launcher.CreateStartInfo(outside).FileName == codeExecutable, "Vault 外 Auto 应选择 VS Code");
-        RequireThrows<InvalidOperationException>(() => launcher.CreateStartInfo(outside, DocumentOpenMode.Obsidian), "Vault 外显式 Obsidian 应拒绝");
-        RequireThrows<IOException>(() => new DocumentLauncher(null, null).CreateStartInfo(outside), "缺少 VS Code 应给出错误");
+        Require(launcher.GetEditorName(outside) == "Obsidian" && launcher.CreateStartInfo(outside).FileName == obsidianExecutable,
+            "库外文件也应默认选择 Obsidian");
+        Require(launcher.CreateStartInfo(outside, DocumentOpenMode.Obsidian).ArgumentList.Single() == outsidePath,
+            "库外文件应允许显式选择 Obsidian");
+        outside.OpenMode = DocumentOpenMode.VSCode;
+        Require(launcher.GetEditorName(outside) == "VS Code" && launcher.CreateStartInfo(outside).FileName == codeExecutable,
+            "每个文件明确选择 VS Code 后应按该设置打开");
+        RequireThrows<IOException>(() => new DocumentLauncher(null, codeExecutable).CreateStartInfo(document),
+            "缺少 Obsidian 应给出错误，不能悄悄改用 VS Code");
+        RequireThrows<IOException>(() => new DocumentLauncher(obsidianExecutable, null).CreateStartInfo(outside), "缺少 VS Code 应给出错误");
         RequireThrows<IOException>(() => launcher.CreateStartInfo(new() { Path = Path.Combine(vault, "missing.md") }), "丢失文件不能启动");
         RequireThrows<InvalidOperationException>(() => launcher.CreateStartInfo(new() { Path = Path.Combine(vault, "example.txt") }), "非 Markdown 文件不能启动");
         var markdownDirectory = Path.Combine(vault, "folder.md");
