@@ -11,6 +11,10 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="QRCoder" Version="1.8.1" />
+    <EmbeddedResource Include="TransferPage.html" LogicalName="FloatingPhrases.TransferPage.html" />
+    <None Update="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Compile Remove="FloatingPhrases.SelfTest\**\*.cs" />
     <Resource Include="Assets\app.ico" />
   </ItemGroup>

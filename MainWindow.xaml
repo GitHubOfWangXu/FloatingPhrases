@@ -311,6 +311,9 @@
                         <TabItem Header="Markdown">
                             <local:DocumentListView x:Name="DocumentView" />
                         </TabItem>
+                        <TabItem Header="手机互传">
+                            <local:TransferView x:Name="TransferView" />
+                        </TabItem>
                     </TabControl>
                 </TabItem>
 

@@ -12,7 +12,7 @@ Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，
 
 - Windows 10 或 Windows 11
 - 从源码构建需要 .NET 8 SDK
-- 运行框架依赖版本需要 .NET 8 Desktop Runtime
+- 运行框架依赖版本需要 .NET 8 Desktop Runtime 和 ASP.NET Core 8 Runtime；自包含发布版无需另装运行时
 
 ## 快速开始
 
@@ -72,6 +72,23 @@ VS Code 需安装正式版；程序会从 PATH、`vscode` 协议或常规安装�
 旧入口的“自动”、缺省或未知打开方式兼容为 Obsidian；原先明确选择的 VS Code 或 Obsidian 保持不变。读取时不改写数据，下次保存时写入明确选项，并在 `.bak` 中保留上一次文件。
 
 VS Code 原生支持 Markdown 预览：按 `Ctrl + Shift + V` 切换预览；先按 `Ctrl + K` 再按 `V` 打开旁侧预览。包含 Wiki 链接或嵌入的知识库笔记适合在 Obsidian 查看；移动和重命名笔记优先在 Obsidian 内进行。
+
+## 手机扫码互传
+
+在“文件”页选择“手机互传”。手机无需安装 App，也无需注册账号；文件直接通过局域网传输。
+
+1. 电脑和手机连接同一路由器的局域网，或连接同一个热点；电脑也可以使用网线。
+2. 选择手机所在网络对应的电脑网卡，点击“开启互传”。手机用相机或扫一扫打开二维码链接；微信等内置浏览器若不能选择或下载文件，请改用系统浏览器。
+3. 手机网页选择照片或文件，点击“发送到电脑”；支持多选、上传进度和取消，文件逐个发送。
+4. 电脑点击“添加文件”或拖入文件，网页会自动刷新分享列表；手机点击“下载”即可保存。添加文件也会自动开启互传。
+5. 接收文件保存在 Windows 下载目录下的 `FloatingPhrases` 文件夹，可点击“打开接收目录”。同名文件另存为 `名称 (1).扩展名`，不覆盖原文件；上传未完成时不显示为成功。
+6. 用完点击“关闭互传”；旧链接立即失效，再次开启需要重新扫码。隐藏到托盘会继续互传；从托盘退出程序会关闭服务。移除分享项只停止分享，不删除原文件。
+
+单个文件上限为 2 GiB。上传期间保持网页打开，不要锁屏；手机的下载位置由浏览器决定。没有接收确认弹窗，拥有当前二维码链接的设备可以向专用接收目录上传；不会自动打开或执行收到的文件。
+
+二维码携带随机临时访问令牌，只分享电脑明确选中的文件，不开放整盘浏览。服务只绑定所选的局域网 IPv4 地址；网页和二维码由本机生成，不访问第三方站点。浏览器连接使用 HTTP，请仅在可信的局域网使用，不公开转发二维码或链接。
+
+首次开启时 Windows 防火墙可能询问是否允许访问，按当前可信网络允许即可；应用不会自动修改防火墙。如果扫码打不开，检查网卡选择、双方是否在同一局域网、VPN 是否阻断本地流量，以及访客 Wi-Fi 是否隔离设备，然后刷新网络并重新开启互传。
 
 ## 本地软件
 
@@ -198,11 +215,11 @@ dotnet build .\FloatingPhrases.SelfTest\FloatingPhrases.SelfTest.csproj -c Relea
 dotnet .\FloatingPhrases.SelfTest\bin\Release\net8.0-windows\FloatingPhrases.SelfTest.dll --ui-export . bin\ui-preview
 ```
 
-导出覆盖 370/430 逻辑像素宽度、96/144/192 DPI、五个页面与文件页的 Markdown 列表。此入口检查布局，不代替点击复制、软件启动或贴边交互的运行验收。
+导出覆盖 370/430 逻辑像素宽度、96/144/192 DPI、五个页面与文件页的 Markdown 列表、互传关闭和开启样例。此入口检查布局，不代替手机扫码、软件启动或贴边交互的运行验收。
 
 ## 构建和自检
 
-需要 .NET 8 SDK。项目不使用第三方 NuGet 包。
+需要 .NET 8 SDK。互传服务使用 .NET 的 ASP.NET Core/Kestrel；二维码使用 QRCoder（MIT），第三方声明随程序分发。
 
 ```powershell
 dotnet build .\FloatingPhrases.csproj -c Release
@@ -217,6 +234,8 @@ Markdown 自检使用临时文件和真实控件事件，覆盖添加去重、�
 
 命令自检覆盖独立存储、备份与损坏文件留档、确认与取消、搜索和编辑、保存失败的一致性，以及真实 PowerShell/CMD 对中文、引号和工作目录的处理。测试使用临时目录和无害命令，不读取或执行用户保存的命令。可用 `dotnet .\FloatingPhrases.SelfTest\bin\Release\net8.0-windows\FloatingPhrases.SelfTest.dll --command-terminal-smoke` 检查可见终端启动，测试写入临时标记后自动退出。
 
+互传自检仅使用 loopback 和通用临时文件，覆盖访问令牌、Host/Origin 校验、只分享选中文件、非法文件名和超限拒绝、中文同名保存、收发字节一致、中断清理、关闭失效和重新开启。`--transfer-only` 可单独执行；`--transfer-browser <临时目录>` 可启动隔离的网页验收入口，按 Ctrl+C 关闭，不使用个人数据。
+
 贴边回归还检查完整过渡的窗口尺寸、原生裁剪和点击区域，并向隐藏测试窗口发送 `WM_MOVING`，验证四边实时吸附、越界松手收起以及拖离吸附范围。可在桌面空闲时运行可见录帧验收（将 `Right` 替换为 `Left` 或 `Top` 检查其他方向）：
 
 ```powershell
@@ -227,7 +246,7 @@ dotnet .\FloatingPhrases.SelfTest\bin\Release\net8.0-windows\FloatingPhrases.Sel
 
 ## 隐私与安全
 
-Floating Phrases 在本机运行，不需要账号或网络服务。用户数据保存在 `%APPDATA%\FloatingPhrases`，不会作为项目文件上传。本版本不再提供其他应用文本选区采集或飞书复制功能，也不注册 Ctrl + Alt + C。旧版复制历史文件不会自动删除。
+Floating Phrases 在本机运行，不需要账号或云服务器。仅手动开启手机互传时监听所选局域网地址，分享文件和接收内容不经过第三方服务。用户数据保存在 `%APPDATA%\FloatingPhrases`，不会作为项目文件上传。本版本不再提供其他应用文本选区采集或飞书复制功能，也不注册 Ctrl + Alt + C。旧版复制历史文件不会自动删除。
 
 发现安全问题时，请按 [安全策略](SECURITY.md) 使用 GitHub 私密漏洞报告，不要在公开 Issue 中附带个人数据。
 

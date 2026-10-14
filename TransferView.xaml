@@ -1,0 +1,57 @@
+<UserControl x:Class="FloatingPhrases.TransferView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    AllowDrop="True" DragOver="Files_DragOver" Drop="Files_Drop">
+    <UserControl.Resources>
+        <Style x:Key="TransferButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Background" Value="#EDF0FA"/>
+            <Setter Property="Foreground" Value="#4462E8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,8,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="扫码互传，无需手机 App" Foreground="#29344D" FontWeight="SemiBold" FontSize="14"/>
+                    <TextBlock Text="电脑和手机连接同一局域网" Foreground="#79839A" FontSize="11" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button x:Name="ToggleButton" Grid.Column="1" Content="开启互传" Click="Toggle_Click" Style="{StaticResource TransferButton}" Background="#4462E8" Foreground="White"/>
+            </Grid>
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <ComboBox x:Name="AddressBox" MinHeight="30" ToolTip="选择手机所在 Wi-Fi 或热点对应的电脑网卡" AutomationProperties.Name="互传网络"/>
+                <Button x:Name="RefreshButton" Grid.Column="1" Content="刷新" Margin="7,0,0,0" Click="Refresh_Click" Style="{StaticResource TransferButton}"/>
+            </Grid>
+            <Border x:Name="SessionPanel" Visibility="Collapsed" Background="White" BorderBrush="#E0E4EE" BorderThickness="1" CornerRadius="11" Padding="10" Margin="0,10,0,0">
+                <StackPanel>
+                    <Image x:Name="QrImage" Width="160" Height="160" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor" AutomationProperties.Name="手机扫描此二维码打开互传网页"/>
+                    <TextBlock Text="手机扫一扫，在网页中上传或下载" HorizontalAlignment="Center" Foreground="#65708A" FontSize="11" Margin="0,4,0,8"/>
+                    <TextBox x:Name="LinkBox" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Foreground="#65708A" FontSize="11" AutomationProperties.Name="临时互传链接"/>
+                    <Button x:Name="CopyLinkButton" Content="复制链接" HorizontalAlignment="Center" Margin="0,7,0,0" Click="CopyLink_Click" Style="{StaticResource TransferButton}"/>
+                </StackPanel>
+            </Border>
+            <Grid Margin="0,12,0,7">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock Text="电脑分享给手机" VerticalAlignment="Center" Foreground="#29344D" FontWeight="SemiBold"/>
+                <Button x:Name="AddFilesButton" Grid.Column="1" Content="添加文件" Click="AddFiles_Click" Style="{StaticResource TransferButton}"/>
+            </Grid>
+            <TextBlock x:Name="EmptyHint" Text="选择或拖入文件，手机网页会自动显示。" Foreground="#79839A" FontSize="11" TextWrapping="Wrap"/>
+            <ItemsControl x:Name="SharedFilesList">
+                <ItemsControl.ItemTemplate><DataTemplate>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" Foreground="#29344D" VerticalAlignment="Center"/>
+                        <Button Content="移除" Grid.Column="1" Tag="{Binding Id}" Click="Remove_Click" Style="{StaticResource TransferButton}" ToolTip="停止分享，不删除原文件"/>
+                    </Grid>
+                </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button x:Name="OpenReceiveButton" Content="打开接收目录" Click="OpenReceive_Click" Style="{StaticResource TransferButton}" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+            <TextBlock x:Name="StatusText" Text="开启后扫码；添加文件也会自动开启互传。" Foreground="#65708A" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0"/>
+            <TextBlock Text="单个文件 ≤ 2 GiB。仅在可信网络使用；关闭互传后链接失效。隐藏到托盘不会关闭互传。" Foreground="#79839A" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

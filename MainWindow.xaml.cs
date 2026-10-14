@@ -247,6 +247,7 @@ public partial class MainWindow : Window
         else if (MainTabs.SelectedIndex == 1)
         {
             if (FileTabs.SelectedIndex == 1) DocumentView.FocusSearch();
+            else if (FileTabs.SelectedIndex == 2) TransferView.FocusAction();
             else FolderSearchBox.Focus();
         }
         else
@@ -380,6 +381,7 @@ public partial class MainWindow : Window
         else if (MainTabs.SelectedIndex == 1)
         {
             if (FileTabs.SelectedIndex == 1) DocumentView.BrowseFiles();
+            else if (FileTabs.SelectedIndex == 2) TransferView.BrowseFiles();
             else AddFolder();
         }
         else
@@ -1007,6 +1009,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        TransferView.Dispose();
         _memoryTimer.Stop();
         _edgeDock.Dispose();
         if (_source is not null)

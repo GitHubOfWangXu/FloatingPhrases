@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>手机互传 · Floating Phrases</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f5fb;color:#29344d;font:16px/1.6 system-ui,-apple-system,sans-serif}
+    main{max-width:560px;margin:auto;padding:28px 18px}h1{font-size:26px;margin:0}h2{font-size:19px;margin:0 0 14px}
+    p{margin:8px 0;color:#65708a}section{background:white;border:1px solid #e0e4ee;border-radius:16px;padding:20px;margin-top:20px}
+    button,.download{font:inherit;border:0;border-radius:9px;padding:11px 16px;background:#4462e8;color:white;cursor:pointer;text-decoration:none;display:inline-block}
+    button:disabled{opacity:.55;cursor:default}button.secondary{background:#edf0fa;color:#4462e8;margin-top:10px}
+    :focus-visible{outline:3px solid #93a4ff;outline-offset:3px}input{width:100%;margin:0 0 12px;font:inherit}
+    progress{width:100%;height:14px;accent-color:#4462e8}#status{min-height:26px;overflow-wrap:anywhere}#status.error{color:#b93848}
+    .file{display:flex;align-items:center;gap:12px;border-top:1px solid #edf0f5;padding:14px 0}.file:first-child{border:0}
+    .name{flex:1;min-width:0;overflow-wrap:anywhere}.name small{display:block;color:#79839a}.download{flex-shrink:0;padding:8px 14px}
+    .note{font-size:13px}#cancel[hidden]{display:none}
+  </style>
+</head>
+<body>
+<main>
+  <h1>手机互传</h1>
+  <p>选文件即可传到电脑，电脑分享的文件也能直接下载。</p>
+  <section aria-labelledby="upload-title">
+    <h2 id="upload-title">发送到电脑</h2>
+    <label for="files">选择照片或文件（可多选，单个不超过 2 GiB）</label>
+    <input id="files" type="file" multiple>
+    <button id="send" disabled>发送到电脑</button>
+    <button id="cancel" class="secondary" hidden>取消上传</button>
+    <p id="status" role="status" aria-live="polite">文件会保存到电脑的专用接收目录。</p>
+    <progress id="progress" value="0" max="100" aria-label="上传进度" hidden></progress>
+  </section>
+  <section aria-labelledby="download-title">
+    <h2 id="download-title">下载到手机</h2>
+    <div id="downloads" aria-live="polite">正在读取电脑分享的文件…</div>
+    <button id="refresh" class="secondary">刷新文件列表</button>
+  </section>
+  <p class="note">保持此页面打开，上传期间不要锁屏。下载位置由手机浏览器决定。</p>
+  <p class="note">这是局域网 HTTP 连接，请在可信网络使用。电脑关闭互传后，此链接失效。</p>
+</main>
+<script>
+  const base = location.pathname.endsWith('/') ? location.pathname : location.pathname + '/';
+  const picker = document.getElementById('files'), send = document.getElementById('send');
+  const cancel = document.getElementById('cancel'), status = document.getElementById('status');
+  const progress = document.getElementById('progress'), downloads = document.getElementById('downloads');
+  let request = null, stopped = false, busy = false, listing = null;
+  function message(text, error = false) { status.textContent = text; status.className = error ? 'error' : ''; }
+  function size(bytes) { return bytes < 1024 ? bytes + ' B' : bytes < 1048576 ? (bytes / 1024).toFixed(1) + ' KiB' : (bytes / 1048576).toFixed(1) + ' MiB'; }
+  picker.addEventListener('change', () => { send.disabled = busy || !picker.files.length; });
+  async function refresh() {
+    try {
+      const response = await fetch(base + 'files', {cache:'no-store'});
+      if (!response.ok) throw new Error();
+      const files = await response.json();
+      const signature = JSON.stringify(files);
+      if (signature === listing) return;
+      listing = signature;
+      downloads.replaceChildren();
+      if (!files.length) { downloads.textContent = '电脑还没有分享文件，添加后会自动出现在这里。'; return; }
+      for (const file of files) {
+        const row = document.createElement('div'); row.className = 'file';
+        const name = document.createElement('div'); name.className = 'name'; name.textContent = file.name;
+        const detail = document.createElement('small'); detail.textContent = size(file.size); name.append(detail);
+        const link = document.createElement('a'); link.className = 'download'; link.textContent = '下载';
+        link.href = base + 'download/' + encodeURIComponent(file.id); link.setAttribute('download', file.name);
+        link.setAttribute('aria-label', '下载 ' + file.name); row.append(name, link); downloads.append(row);
+      }
+    } catch { listing = null; downloads.textContent = '连接已中断或电脑已关闭互传，请重新扫码。'; }
+  }
+  function upload(file, index, total) {
+    return new Promise((resolve, reject) => {
+      request = new XMLHttpRequest();
+      request.open('POST', base + 'upload');
+      request.setRequestHeader('Content-Type', 'application/octet-stream');
+      request.setRequestHeader('X-Transfer-Upload', '1');
+      request.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+      request.upload.onprogress = event => {
+        progress.value = event.lengthComputable ? event.loaded / event.total * 100 : 0;
+        message('正在发送 ' + index + '/' + total + '：' + file.name + (progress.value >= 100 ? ' · 等待电脑保存…' : ''));
+      };
+      request.onload = () => {
+        let result; try { result = JSON.parse(request.responseText); } catch { result = {}; }
+        if (request.status >= 200 && request.status < 300) resolve(result);
+        else reject(new Error(result.error || (request.status === 413 ? '文件超过 2 GiB，请选择较小文件。' : '发送失败，请检查电脑是否开启互传。')));
+      };
+      request.onerror = () => reject(new Error('连接中断，请保持同一 Wi-Fi 并重新发送。'));
+      request.onabort = () => reject(new Error('已取消；已经发送成功的文件会保留。'));
+      request.send(file);
+    });
+  }
+  send.addEventListener('click', async () => {
+    const files = Array.from(picker.files);
+    if (!files.length || busy) return;
+    if (files.some(file => file.size > 2147483648)) { message('单个文件不能超过 2 GiB。', true); return; }
+    busy = true; stopped = false; let complete = 0;
+    picker.disabled = true; send.disabled = true; cancel.hidden = false; progress.hidden = false; progress.value = 0;
+    try {
+      for (const file of files) {
+        if (stopped) break;
+        await upload(file, complete + 1, files.length); complete++;
+      }
+      message('已发送 ' + complete + ' 个文件，电脑已保存。');
+      picker.value = '';
+    } catch (error) { message('已完成 ' + complete + '/' + files.length + '。' + error.message, true); }
+    finally { request = null; busy = false; picker.disabled = false; send.disabled = !picker.files.length; cancel.hidden = true; progress.hidden = true; }
+  });
+  cancel.addEventListener('click', () => { stopped = true; if (request) request.abort(); });
+  document.getElementById('refresh').addEventListener('click', refresh);
+  window.addEventListener('beforeunload', event => { if (busy) { event.preventDefault(); event.returnValue = ''; } });
+  refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>
