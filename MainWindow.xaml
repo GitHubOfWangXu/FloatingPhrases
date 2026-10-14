@@ -75,6 +75,15 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl"><Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <UniformGrid Rows="1" IsItemsHost="True"/>
+                <ContentPresenter Grid.Row="1" ContentSource="SelectedContent" Margin="0,4,0,0"/>
+            </Grid></ControlTemplate></Setter.Value></Setter>
+        </Style>
         <Style TargetType="TabItem">
             <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#65708A"/><Setter Property="Background" Value="Transparent"/>
@@ -138,12 +147,7 @@
                 </Grid>
             </Grid>
 
-            <TabControl x:Name="MainTabs" Grid.Row="1" Margin="12,8,12,0" Background="Transparent" BorderThickness="0">
-                <TabControl.Template><ControlTemplate TargetType="TabControl"><Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <UniformGrid Rows="1" IsItemsHost="True"/>
-                    <ContentPresenter Grid.Row="1" ContentSource="SelectedContent" Margin="0,4,0,0"/>
-                </Grid></ControlTemplate></TabControl.Template>
+            <TabControl x:Name="MainTabs" Grid.Row="1" Margin="12,8,12,0">
                 <TabItem Header="常用句子">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -225,18 +229,9 @@
                 </TabItem>
 
                 <TabItem Header="文件" ToolTip="文件夹与 Markdown 快捷入口">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <ComboBox x:Name="FileTypeBox" Margin="4,8,4,0" Height="32"
-                                  SelectedIndex="0" SelectionChanged="FileTypeBox_SelectionChanged"
-                                  ToolTip="切换文件夹与 Markdown 列表">
-                            <ComboBoxItem Content="文件夹" />
-                            <ComboBoxItem Content="Markdown" />
-                        </ComboBox>
-                        <Grid x:Name="FolderPanel" Grid.Row="1">
+                    <TabControl x:Name="FileTabs" Margin="0,8,0,0" SelectedIndex="0">
+                        <TabItem Header="文件夹">
+                        <Grid x:Name="FolderPanel">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="62" />
@@ -312,8 +307,14 @@
                         </Grid>
                     </Grid>
                         </Grid>
-                        <local:DocumentListView x:Name="DocumentView" Grid.Row="1" Visibility="Collapsed" />
-                    </Grid>
+                        </TabItem>
+                        <TabItem Header="Markdown">
+                            <local:DocumentListView x:Name="DocumentView" />
+                        </TabItem>
+                        <TabItem Header="手机互传">
+                            <local:TransferView x:Name="TransferView" />
+                        </TabItem>
+                    </TabControl>
                 </TabItem>
 
                 <TabItem Header="软件" ToolTip="本地软件">

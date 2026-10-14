@@ -1,5 +1,11 @@
 using FloatingPhrases;
 
+if (args.Length == 2 && args[0] == "--transfer-browser")
+{
+    TransferChecks.RunBrowser(args[1]);
+    return 0;
+}
+
 if (args.Length == 3 && args[0] == "--ui-export")
 {
     LayoutChecks.Run(args[1], args[2]);
@@ -33,6 +39,11 @@ var settingsTestFile = Path.Combine(testDirectory, "settings.json");
 try
 {
     Directory.CreateDirectory(testDirectory);
+    if (args.Length == 1 && args[0] == "--transfer-only")
+    {
+        TransferChecks.Run(testDirectory);
+        return 0;
+    }
     if (args.Length == 1 && args[0] == "--command-terminal-smoke")
     {
         CommandChecks.RunProcesses(testDirectory, true);
@@ -47,6 +58,7 @@ try
     TodoChecks.Run(testDirectory, args.Length == 2 && args[0] == "--todo-screenshot" ? Path.GetFullPath(args[1]) : null);
     DocumentChecks.Run(testDirectory);
     DocumentViewChecks.Run(testDirectory);
+    TransferChecks.Run(testDirectory);
     var memory = new MemoryUsage(16UL * 1073741824, 4UL * 1073741824);
     Require(memory.UsedBytes == 12UL * 1073741824 && memory.UsedPercent == 75,
         "系统内存应按总量减去可用量计算，不能误用本进程内存");

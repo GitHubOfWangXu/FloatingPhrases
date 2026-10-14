@@ -1,11 +1,14 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Xml.Linq;
 using FloatingPhrases;
+using QRCoder;
 
 // Render the shipped XAML with generic data, without opening a window, registering
 // hotkeys, reading user stores, or changing the clipboard. This is a layout check,
@@ -44,6 +47,7 @@ internal static class LayoutChecks
         todo.Name = ui + "ContentControl";
         root.Descendants().Single(e => e.Name.LocalName == "CommandListView").Name = ui + "ContentControl";
         root.Descendants().Single(e => e.Name.LocalName == "DocumentListView").Name = ui + "ContentControl";
+        root.Descendants().Single(e => e.Name.LocalName == "TransferView").Name = ui + "ContentControl";
         var view = (UserControl)XamlReader.Parse(doc.ToString());
         T Find<T>(string name) => (T)view.FindName(name);
         Find<ItemsControl>("PhraseList").ItemsSource = new[] {
@@ -84,7 +88,17 @@ internal static class LayoutChecks
             new DocumentShortcut { Name = "设计方案", Path = @"D:\Projects\Sample\docs\设计方案.md" }
         ]);
         Find<ContentControl>("DocumentView").Content = new DocumentListView(documentStore, new DocumentLauncher(null, null));
+        using var transfer = new TransferView(Path.Combine(output, "sample-received"));
+        Find<ContentControl>("TransferView").Content = transfer;
+        T Transfer<T>(string name) => (T)transfer.FindName(name);
+        Transfer<ComboBox>("AddressBox").ItemsSource = new[] { "Wi-Fi · 192.168.1.10" };
+        Transfer<ComboBox>("AddressBox").SelectedIndex = 0;
+        const string sampleUrl = "http://192.168.1.10:54321/0123456789abcdef0123456789abcdef0123456789abcdef/";
+        using var qrStream = new MemoryStream(PngByteQRCodeHelper.GetQRCode(sampleUrl, QRCodeGenerator.ECCLevel.M, 6));
+        var qr = new BitmapImage();
+        qr.BeginInit(); qr.CacheOption = BitmapCacheOption.OnLoad; qr.StreamSource = qrStream; qr.EndInit(); qr.Freeze();
         var tabs = Find<TabControl>("MainTabs");
+        var fileTabs = Find<TabControl>("FileTabs");
         var commandStore = new CommandStore(Path.Combine(output, "sample-commands.json"));
         commandStore.Save([
             new CommandShortcut { Name = "查看目录", Text = "Get-ChildItem", WorkingDirectory = @"D:\Projects\Sample" },
@@ -93,19 +107,55 @@ internal static class LayoutChecks
         ]);
         Find<ContentControl>("CommandView").Content = new CommandListView(commandStore);
         if (tabs.Items.Count != 5) throw new InvalidOperationException("Expected exactly five visible tabs");
+        if (fileTabs.Items.Count != 3 || fileTabs.SelectedIndex != 0)
+            throw new InvalidOperationException("Expected three file tabs with folders selected by default");
         foreach (var width in new[] { 370, 430 })
         foreach (var dpi in new[] { 96, 144, 192 })
-        for (var tab = 0; tab < 6; tab++)
+        for (var tab = 0; tab < 8; tab++)
         {
             view.Width = width;
             view.Height = 650;
-            tabs.SelectedIndex = tab == 5 ? 1 : tab;
-            Find<ComboBox>("FileTypeBox").SelectedIndex = tab == 5 ? 1 : 0;
-            Find<Grid>("FolderPanel").Visibility = tab == 5 ? Visibility.Collapsed : Visibility.Visible;
-            Find<ContentControl>("DocumentView").Visibility = tab == 5 ? Visibility.Visible : Visibility.Collapsed;
+            tabs.SelectedIndex = tab >= 5 ? 1 : tab;
+            fileTabs.SelectedIndex = tab >= 6 ? 2 : tab == 5 ? 0 : 1;
+            Transfer<FrameworkElement>("SessionPanel").Visibility = tab == 7 ? Visibility.Visible : Visibility.Collapsed;
+            Transfer<Image>("QrImage").Source = tab == 7 ? qr : null;
+            Transfer<TextBox>("LinkBox").Text = tab == 7 ? sampleUrl : "";
+            Transfer<Button>("ToggleButton").Content = tab == 7 ? "关闭互传" : "开启互传";
+            Transfer<ComboBox>("AddressBox").IsEnabled = Transfer<Button>("RefreshButton").IsEnabled = tab != 7;
+            Transfer<ItemsControl>("SharedFilesList").ItemsSource = tab == 7
+                ? new[] { new TransferFile("sample", "项目资料与图片.zip", 1048576) } : Array.Empty<TransferFile>();
+            Transfer<TextBlock>("EmptyHint").Visibility = tab == 7 ? Visibility.Collapsed : Visibility.Visible;
+            Transfer<TextBlock>("StatusText").Text = tab == 7
+                ? "互传已开启。手机扫码即可上传和下载；若打不开，请检查同一 Wi-Fi 和 Windows 防火墙。"
+                : "开启后扫码；添加文件也会自动开启互传。";
+            ((ScrollViewer)transfer.Content).ScrollToTop();
             view.Measure(new Size(width, 650));
             view.Arrange(new Rect(0, 0, width, 650));
             view.UpdateLayout();
+            if (tab is 1 or >= 5)
+            {
+                foreach (TabItem header in fileTabs.Items)
+                {
+                    var bounds = header.TransformToAncestor(view).TransformBounds(new Rect(header.RenderSize));
+                    if (bounds.Left < 0 || bounds.Right > width || bounds.Height <= 0)
+                        throw new InvalidOperationException($"File tab {header.Header} is clipped at width {width}");
+                }
+                var selectedIndex = tab >= 6 ? 2 : tab == 5 ? 1 : 0;
+                var target = (TabItem)fileTabs.Items[selectedIndex];
+                var peer = new TabItemAutomationPeer(target, new TabControlAutomationPeer(fileTabs));
+                ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
+                view.UpdateLayout();
+                if (fileTabs.SelectedIndex != selectedIndex || !ReferenceEquals(fileTabs.SelectedContent, target.Content)
+                    || view.IsAncestorOf(Find<Grid>("FolderPanel")) != (selectedIndex == 0)
+                    || view.IsAncestorOf(Find<ContentControl>("DocumentView")) != (selectedIndex == 1)
+                    || view.IsAncestorOf(Find<ContentControl>("TransferView")) != (selectedIndex == 2))
+                    throw new InvalidOperationException("One tab selection must switch to the matching file list");
+                tabs.SelectedIndex = 2;
+                tabs.SelectedIndex = 1;
+                view.UpdateLayout();
+                if (fileTabs.SelectedIndex != selectedIndex)
+                    throw new InvalidOperationException("Returning to files must retain the selected file tab");
+            }
             foreach (var name in new[] { "ModeBox", "OpacitySlider", "OpacityValueText" })
             {
                 var element = Find<FrameworkElement>(name);
@@ -124,6 +174,26 @@ internal static class LayoutChecks
                         throw new InvalidOperationException($"Markdown {name} is clipped at width {width}");
                 }
             }
+            if (tab >= 6)
+            {
+                foreach (var name in new[] { "ToggleButton", "AddressBox", "RefreshButton", "AddFilesButton", "OpenReceiveButton", "StatusText" }
+                    .Concat(tab == 7 ? new[] { "QrImage", "LinkBox", "CopyLinkButton", "SharedFilesList" } : Array.Empty<string>()))
+                {
+                    var element = Transfer<FrameworkElement>(name);
+                    var bounds = element.TransformToAncestor(view).TransformBounds(new Rect(element.RenderSize));
+                    if (bounds.Left < 0 || bounds.Right > width || bounds.Height <= 0)
+                        throw new InvalidOperationException($"Transfer {name} is clipped at width {width}");
+                }
+                var scroll = (ScrollViewer)transfer.Content;
+                scroll.ScrollToBottom();
+                view.UpdateLayout();
+                var button = Transfer<Button>("OpenReceiveButton");
+                var buttonBounds = button.TransformToAncestor(scroll).TransformBounds(new Rect(button.RenderSize));
+                if (buttonBounds.Top < 0 || buttonBounds.Bottom > scroll.ActualHeight)
+                    throw new InvalidOperationException("Transfer receive-folder button must be reachable by scrolling");
+                scroll.ScrollToTop();
+                view.UpdateLayout();
+            }
             var bitmap = new RenderTargetBitmap(width * dpi / 96, 650 * dpi / 96, dpi, dpi, PixelFormats.Pbgra32);
             bitmap.Render(view);
             var encoder = new PngBitmapEncoder();
@@ -131,7 +201,7 @@ internal static class LayoutChecks
             using var file = File.Create(Path.Combine(output, $"ui-{width}-{dpi}-{tab}.png"));
             encoder.Save(file);
         }
-        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: five tabs plus Markdown view; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar and Markdown bounds. Generic sample data. No desktop input. Code-behind actions checked separately.");
-        Console.WriteLine("UI layout checks passed; 36 images exported.");
+        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: five main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar, file tabs, Markdown and transfer bounds. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
+        Console.WriteLine("UI layout checks passed; 48 images exported.");
     }
 }
