@@ -12,6 +12,12 @@ if (args.Length == 3 && args[0] == "--ui-export")
     return 0;
 }
 
+if (args.Length == 1 && args[0] == "--computer-only")
+{
+    ComputerChecks.Run();
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--document-open-smoke")
 {
     DocumentChecks.OpenInstalledEditor(args[1]);
@@ -54,6 +60,7 @@ try
         TodoChecks.RunClipboardCopy(testDirectory);
         return 0;
     }
+    ComputerChecks.Run();
     CommandChecks.Run(testDirectory);
     TodoChecks.Run(testDirectory, args.Length == 2 && args[0] == "--todo-screenshot" ? Path.GetFullPath(args[1]) : null);
     DocumentChecks.Run(testDirectory);

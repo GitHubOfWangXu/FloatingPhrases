@@ -88,7 +88,7 @@
             <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#65708A"/><Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
-                <Border x:Name="TabPill" Background="{TemplateBinding Background}" CornerRadius="8" Padding="4,10" Margin="2,0">
+                <Border x:Name="TabPill" Background="{TemplateBinding Background}" CornerRadius="8" Padding="2,10" Margin="2,0">
                     <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
                 </Border>
                 <ControlTemplate.Triggers>
@@ -129,10 +129,16 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Floating Phrases" FontSize="17" FontWeight="SemiBold" Foreground="#253047" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="短语 · 文件 · 软件 · 待办 · 命令" FontSize="11" Foreground="#79839A" Margin="0,3,0,0" />
+                        <TextBlock Text="短语 · 文件 · 软件 · 待办 · 命令 · 电脑" FontSize="11" Foreground="#79839A" Margin="0,3,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="＋" Style="{StaticResource IconButton}" FontSize="20" ToolTip="新增当前类型" Click="Add_Click" />
+                        <Button x:Name="AddEntryButton" Content="＋" FontSize="20" ToolTip="新增当前类型" Click="Add_Click">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                <Style.Triggers><DataTrigger Binding="{Binding IsSelected, ElementName=ComputerTab}" Value="True">
+                                    <Setter Property="IsEnabled" Value="False"/>
+                                </DataTrigger></Style.Triggers>
+                            </Style></Button.Style>
+                        </Button>
                         <Button Content="—" Style="{StaticResource IconButton}" FontSize="17" ToolTip="隐藏到托盘" Click="Hide_Click" />
                     </StackPanel>
                 </Grid>
@@ -416,6 +422,9 @@
                 </TabItem>
                 <TabItem x:Name="CommandTab" Header="命令" ToolTip="保存并在终端运行常用命令">
                     <local:CommandListView x:Name="CommandView" />
+                </TabItem>
+                <TabItem x:Name="ComputerTab" Header="电脑" ToolTip="电脑状态与系统管理入口">
+                    <local:ComputerView x:Name="ComputerView" />
                 </TabItem>
             </TabControl>
 

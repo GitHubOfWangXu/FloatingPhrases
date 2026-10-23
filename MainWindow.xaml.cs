@@ -232,7 +232,11 @@ public partial class MainWindow : Window
 
     private void FocusCurrentSearch()
     {
-        if (CommandTab.IsSelected)
+        if (ComputerTab.IsSelected)
+        {
+            ComputerView.FocusAction();
+        }
+        else if (CommandTab.IsSelected)
         {
             CommandView.FocusSearch();
         }
@@ -366,7 +370,11 @@ public partial class MainWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        if (CommandTab.IsSelected)
+        if (ComputerTab.IsSelected)
+        {
+            ComputerView.FocusAction();
+        }
+        else if (CommandTab.IsSelected)
         {
             ShowCommandInput();
         }
