@@ -1,5 +1,17 @@
 using FloatingPhrases;
 
+if (args.Length == 1 && args[0] == "--memory-test-child")
+{
+    Thread.Sleep(30000);
+    return 0;
+}
+
+if (args.Length == 1 && args[0] == "--memory-only")
+{
+    ProcessMemoryChecks.Run();
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--transfer-browser")
 {
     TransferChecks.RunBrowser(args[1]);
@@ -9,6 +21,12 @@ if (args.Length == 2 && args[0] == "--transfer-browser")
 if (args.Length == 3 && args[0] == "--ui-export")
 {
     LayoutChecks.Run(args[1], args[2]);
+    return 0;
+}
+
+if (args.Length == 1 && args[0] == "--computer-only")
+{
+    ComputerChecks.Run();
     return 0;
 }
 
@@ -54,7 +72,9 @@ try
         TodoChecks.RunClipboardCopy(testDirectory);
         return 0;
     }
+    ComputerChecks.Run();
     CommandChecks.Run(testDirectory);
+    ProcessMemoryChecks.Run();
     TodoChecks.Run(testDirectory, args.Length == 2 && args[0] == "--todo-screenshot" ? Path.GetFullPath(args[1]) : null);
     DocumentChecks.Run(testDirectory);
     DocumentViewChecks.Run(testDirectory);

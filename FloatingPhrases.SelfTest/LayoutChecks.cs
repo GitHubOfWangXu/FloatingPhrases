@@ -48,6 +48,7 @@ internal static class LayoutChecks
         root.Descendants().Single(e => e.Name.LocalName == "CommandListView").Name = ui + "ContentControl";
         root.Descendants().Single(e => e.Name.LocalName == "DocumentListView").Name = ui + "ContentControl";
         root.Descendants().Single(e => e.Name.LocalName == "TransferView").Name = ui + "ContentControl";
+        root.Descendants().Single(e => e.Name.LocalName == "ComputerView").Name = ui + "ContentControl";
         var view = (UserControl)XamlReader.Parse(doc.ToString());
         T Find<T>(string name) => (T)view.FindName(name);
         Find<ItemsControl>("PhraseList").ItemsSource = new[] {
@@ -106,16 +107,19 @@ internal static class LayoutChecks
             new CommandShortcut { Name = "检查 Git 状态", Text = "git status", WorkingDirectory = @"D:\Projects\Sample", Shell = CommandShell.Cmd }
         ]);
         Find<ContentControl>("CommandView").Content = new CommandListView(commandStore);
-        if (tabs.Items.Count != 5) throw new InvalidOperationException("Expected exactly five visible tabs");
+        var computer = new ComputerView(_ => throw new InvalidOperationException("Layout checks must not open system tools"));
+        computer.ShowStatus(ComputerChecks.SampleSnapshot);
+        Find<ContentControl>("ComputerView").Content = computer;
+        if (tabs.Items.Count != 6) throw new InvalidOperationException("Expected exactly six visible tabs");
         if (fileTabs.Items.Count != 3 || fileTabs.SelectedIndex != 0)
             throw new InvalidOperationException("Expected three file tabs with folders selected by default");
         foreach (var width in new[] { 370, 430 })
         foreach (var dpi in new[] { 96, 144, 192 })
-        for (var tab = 0; tab < 8; tab++)
+        for (var tab = 0; tab < 9; tab++)
         {
             view.Width = width;
             view.Height = 650;
-            tabs.SelectedIndex = tab >= 5 ? 1 : tab;
+            tabs.SelectedIndex = tab == 8 ? 5 : tab >= 5 ? 1 : tab;
             fileTabs.SelectedIndex = tab >= 6 ? 2 : tab == 5 ? 0 : 1;
             Transfer<FrameworkElement>("SessionPanel").Visibility = tab == 7 ? Visibility.Visible : Visibility.Collapsed;
             Transfer<Image>("QrImage").Source = tab == 7 ? qr : null;
@@ -132,7 +136,18 @@ internal static class LayoutChecks
             view.Measure(new Size(width, 650));
             view.Arrange(new Rect(0, 0, width, 650));
             view.UpdateLayout();
-            if (tab is 1 or >= 5)
+            foreach (TabItem header in tabs.Items)
+            {
+                var headerBounds = header.TransformToAncestor(view).TransformBounds(new Rect(header.RenderSize));
+                var text = new FormattedText(header.Header.ToString(), System.Globalization.CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight, new Typeface(header.FontFamily, header.FontStyle, header.FontWeight, header.FontStretch),
+                    header.FontSize, Brushes.Black, dpi / 96.0);
+                if (headerBounds.Left < 0 || headerBounds.Right > width || headerBounds.Height <= 0 || text.Width + 8 > header.ActualWidth)
+                    throw new InvalidOperationException($"Main tab {header.Header} is clipped at width {width}");
+            }
+            if (Find<Button>("AddEntryButton").IsEnabled == (tab == 8))
+                throw new InvalidOperationException("The computer page must disable adding entries without affecting the existing pages");
+            if (tab is 1 or 5 or 6 or 7)
             {
                 foreach (TabItem header in fileTabs.Items)
                 {
@@ -174,7 +189,7 @@ internal static class LayoutChecks
                         throw new InvalidOperationException($"Markdown {name} is clipped at width {width}");
                 }
             }
-            if (tab >= 6)
+            if (tab is 6 or 7)
             {
                 foreach (var name in new[] { "ToggleButton", "AddressBox", "RefreshButton", "AddFilesButton", "OpenReceiveButton", "StatusText" }
                     .Concat(tab == 7 ? new[] { "QrImage", "LinkBox", "CopyLinkButton", "SharedFilesList" } : Array.Empty<string>()))
@@ -194,6 +209,26 @@ internal static class LayoutChecks
                 scroll.ScrollToTop();
                 view.UpdateLayout();
             }
+            if (tab == 8)
+            {
+                foreach (var name in new[] { "CpuText", "MemoryText", "MemoryDetailsButton", "DiskList", "NetworkList", "ToolButtons" })
+                {
+                    var element = (FrameworkElement)computer.FindName(name);
+                    var bounds = element.TransformToAncestor(view).TransformBounds(new Rect(element.RenderSize));
+                    if (bounds.Left < 0 || bounds.Right > width || bounds.Height <= 0)
+                        throw new InvalidOperationException($"Computer {name} is clipped at width {width}");
+                }
+                var scroll = (ScrollViewer)computer.FindName("StatusScroll");
+                scroll.ScrollToBottom();
+                view.UpdateLayout();
+                var tools = (System.Windows.Controls.Primitives.UniformGrid)computer.FindName("ToolButtons");
+                var last = tools.Children.OfType<Button>().Last();
+                var lastBounds = last.TransformToAncestor(scroll).TransformBounds(new Rect(last.RenderSize));
+                if (lastBounds.Top < 0 || lastBounds.Bottom > scroll.ActualHeight)
+                    throw new InvalidOperationException("All computer management buttons must be reachable by scrolling");
+                scroll.ScrollToTop();
+                view.UpdateLayout();
+            }
             var bitmap = new RenderTargetBitmap(width * dpi / 96, 650 * dpi / 96, dpi, dpi, PixelFormats.Pbgra32);
             bitmap.Render(view);
             var encoder = new PngBitmapEncoder();
@@ -201,7 +236,8 @@ internal static class LayoutChecks
             using var file = File.Create(Path.Combine(output, $"ui-{width}-{dpi}-{tab}.png"));
             encoder.Save(file);
         }
-        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: five main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar, file tabs, Markdown and transfer bounds. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
-        Console.WriteLine("UI layout checks passed; 48 images exported.");
+        ProcessMemoryChecks.Export(output);
+        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: six main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar, main and file tabs, Markdown, transfer and computer bounds; computer management buttons reachable by scrolling; memory details at 560/700 pixels. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
+        Console.WriteLine("UI layout checks passed; 60 images exported.");
     }
 }
