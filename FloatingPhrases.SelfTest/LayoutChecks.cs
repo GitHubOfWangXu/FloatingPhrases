@@ -211,7 +211,7 @@ internal static class LayoutChecks
             }
             if (tab == 8)
             {
-                foreach (var name in new[] { "CpuText", "MemoryText", "DiskList", "NetworkList", "ToolButtons" })
+                foreach (var name in new[] { "CpuText", "MemoryText", "MemoryDetailsButton", "DiskList", "NetworkList", "ToolButtons" })
                 {
                     var element = (FrameworkElement)computer.FindName(name);
                     var bounds = element.TransformToAncestor(view).TransformBounds(new Rect(element.RenderSize));
@@ -236,7 +236,8 @@ internal static class LayoutChecks
             using var file = File.Create(Path.Combine(output, $"ui-{width}-{dpi}-{tab}.png"));
             encoder.Save(file);
         }
-        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: six main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar, main and file tabs, Markdown, transfer and computer bounds; computer management buttons reachable by scrolling. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
-        Console.WriteLine("UI layout checks passed; 54 images exported.");
+        ProcessMemoryChecks.Export(output);
+        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: six main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar, main and file tabs, Markdown, transfer and computer bounds; computer management buttons reachable by scrolling; memory details at 560/700 pixels. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
+        Console.WriteLine("UI layout checks passed; 60 images exported.");
     }
 }

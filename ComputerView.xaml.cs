@@ -11,14 +11,16 @@ public partial class ComputerView : System.Windows.Controls.UserControl
 {
     private readonly DispatcherTimer _timer;
     private readonly Action<ProcessStartInfo> _launch;
+    private readonly Action _showMemory;
     private SystemStatus? _reader;
     private bool _refreshing;
 
     public ComputerView() : this(null) { }
 
-    public ComputerView(Action<ProcessStartInfo>? launch)
+    public ComputerView(Action<ProcessStartInfo>? launch, Action? showMemory = null)
     {
         _launch = launch ?? (info => { using var process = Process.Start(info); });
+        _showMemory = showMemory ?? (() => new ProcessMemoryWindow { Owner = Window.GetWindow(this) }.ShowDialog());
         InitializeComponent();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += (_, _) => RefreshStatus();
@@ -28,6 +30,8 @@ public partial class ComputerView : System.Windows.Controls.UserControl
     }
 
     public void FocusAction() => TaskManagerButton.Focus();
+
+    private void MemoryDetails_Click(object sender, RoutedEventArgs e) => _showMemory();
 
     private void UpdateMonitoring()
     {

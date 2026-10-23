@@ -45,6 +45,7 @@
                         <TextBlock Text="物理内存" Foreground="#65708A"/>
                         <TextBlock x:Name="MemoryText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#35405A" Margin="0,4,0,0" AutomationProperties.Name="物理内存占用"/>
                         <ProgressBar x:Name="MemoryBar" AutomationProperties.Name="物理内存占用进度"/>
+                        <Button x:Name="MemoryDetailsButton" Content="查看占用程序" FontSize="11" Height="28" Margin="0,8,0,0" Click="MemoryDetails_Click" ToolTip="查看内存详情，按占用排序并控制进程"/>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -91,6 +92,7 @@
                 <Button Content="已安装应用" Tag="{x:Static local:SystemTool.Apps}" Click="OpenTool_Click"/>
                 <Button Content="启动应用" Tag="{x:Static local:SystemTool.Startup}" Click="OpenTool_Click"/>
                 <Button Content="Windows 更新" Tag="{x:Static local:SystemTool.Update}" Click="OpenTool_Click"/>
+                <Button Content="系统服务" Tag="{x:Static local:SystemTool.Services}" Click="OpenTool_Click" ToolTip="打开 Windows 服务管理器，可在其中查看和停止服务"/>
             </UniformGrid>
             <TextBlock x:Name="FeedbackText" Text="这里只读取电脑状态；点击入口后在系统窗口中操作。" Foreground="#79839A" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,10" AutomationProperties.LiveSetting="Polite"/>
         </StackPanel>

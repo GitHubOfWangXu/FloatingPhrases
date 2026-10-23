@@ -59,9 +59,12 @@ internal static class ComputerChecks
     private static void CheckView()
     {
         var launched = new List<ProcessStartInfo>();
-        var view = new ComputerView(launched.Add);
+        var memoryOpened = 0;
+        var view = new ComputerView(launched.Add, () => memoryOpened++);
         T Named<T>(string name) => (T)view.FindName(name);
         Check(launched.Count == 0, "加载电脑页不得打开系统工具");
+        Named<Button>("MemoryDetailsButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(memoryOpened == 1 && launched.Count == 0, "内存详情按钮应只打开详情窗口，不直接控制进程");
         view.ShowStatus(SampleSnapshot);
         view.Measure(new Size(338, 455));
         view.Arrange(new Rect(0, 0, 338, 455));
@@ -72,7 +75,7 @@ internal static class ComputerChecks
             && Named<ItemsControl>("NetworkList").Items.Count == 2, "各磁盘和网卡应独立呈现");
         var expected = new[] { "Taskmgr.exe", "resmon.exe", "ms-settings:sound", "ms-settings:display",
             "ms-settings:network-status", "ms-settings:powersleep", "ms-settings:storagesense",
-            "ms-settings:appsfeatures", "ms-settings:startupapps", "ms-settings:windowsupdate" };
+            "ms-settings:appsfeatures", "ms-settings:startupapps", "ms-settings:windowsupdate", "mmc.exe" };
         var buttons = Named<System.Windows.Controls.Primitives.UniformGrid>("ToolButtons").Children.OfType<Button>().ToArray();
         Check(buttons.Length == expected.Length, "系统管理入口应完整显示");
         for (var i = 0; i < buttons.Length; i++)
@@ -80,9 +83,12 @@ internal static class ComputerChecks
             buttons[i].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Check(launched.Count == i + 1 && launched[i].UseShellExecute && launched[i].Arguments.Length == 0,
                 "每次点击只应请求打开一个系统工具，不运行终端命令");
-            var target = i < 2 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), expected[i]) : expected[i];
+            var target = i < 2 || i == 10 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), expected[i]) : expected[i];
             Check(launched[i].FileName == target && string.IsNullOrEmpty(launched[i].Verb),
                 "入口应指向固定的系统目标，且不自动请求提权");
+            Check(i == 10
+                ? launched[i].ArgumentList.SequenceEqual([Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "services.msc")])
+                : launched[i].ArgumentList.Count == 0, "服务入口只能打开系统服务控制台");
         }
         view.ShowStatus(new(null, false, null, [], "磁盘读取失败", [], "没有已连接的网卡"));
         Check(Named<TextBlock>("CpuText").Text == "暂不可用" && Named<TextBlock>("MemoryText").Text == "--"
