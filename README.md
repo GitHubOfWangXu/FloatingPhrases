@@ -28,7 +28,18 @@ GLM Coding 通道直接请求 `https://open.bigmodel.cn/api/coding/paas/v4/chat/
 
 只有点击翻译入口、按翻译快捷键或手动重试时才发送文本；不持续监听剪贴板，不模拟复制，不读取整篇文档，不保存翻译历史，也不自动替换剪贴板。请勿主动提交不适合发送到云端的内容。取消等待或关闭窗口无法撤回已提交的云端请求。
 
-Qwen 密钥继续保存在 `%APPDATA%\FloatingPhrases\translation-key.bin`；GLM Coding 密钥保存在同目录的 `translation-key.bin.glm-coding`，硅基流动密钥保存在 `translation-key.bin.siliconflow`，服务选择保存在 `translation-key.bin.provider`。均使用 Windows DPAPI 当前用户加密，更新时保留加密的 `.bak` 恢复文件，不迁移或覆盖已有 Qwen 或 GLM 密钥。保存密钥或切换服务本身不会联网或验证密钥有效性；损坏文件不会被自动清理。密钥不能直接跨用户或跨设备复制使用，请在新设备重新配置。现有 JSON 数据格式不变。截图按钮仍只截图，本期不包含 OCR。
+Qwen 密钥继续保存在 `%APPDATA%\FloatingPhrases\translation-key.bin`；GLM Coding 密钥保存在同目录的 `translation-key.bin.glm-coding`，硅基流动密钥保存在 `translation-key.bin.siliconflow`，服务选择保存在 `translation-key.bin.provider`。均使用 Windows DPAPI 当前用户加密，更新时保留加密的 `.bak` 恢复文件，不迁移或覆盖已有 Qwen 或 GLM 密钥。保存密钥或切换服务本身不会联网或验证密钥有效性；损坏文件不会被自动清理。密钥不能直接跨用户或跨设备复制使用，请在新设备重新配置。现有 JSON 数据格式不变。截图与标注不包含 OCR。
+
+## 截图编辑
+
+1. 点击标题栏“截图”，拖拽选择区域，松开后进入本软件的编辑窗口。
+2. 选择矩形、直线、箭头或画笔，在图片上拖动标注；可调整颜色和像素线宽。
+3. 使用“撤销 / 重做”或 `Ctrl+Z` / `Ctrl+Y` 修改标注。
+4. 点击“完成并复制”将最终图片写入剪贴板；也可“另存 PNG”后继续编辑。
+
+原图保持不变，预览自动缩小以适应窗口，复制和导出仍保留原图像素尺寸。取消或关闭编辑窗口不会覆盖剪贴板，已另存的 PNG 不受影响。PNG 覆盖保存前保留 `.bak` 文件；保存失败时保留当前标注。不自动保存截图历史，不上传图片，不包含 OCR。
+
+采用原生 WPF 绘制，交互与结构参考 [Scribo](https://github.com/0xPyAI/scribo) 和 [Stackshot](https://github.com/rubenitx/stackshot)，没有引入其运行依赖。
 
 ## 系统要求
 
@@ -42,7 +53,7 @@ Qwen 密钥继续保存在 `%APPDATA%\FloatingPhrases\translation-key.bin`；GLM
 2. 运行 `FloatingPhrases.exe`。
 3. 窗口默认显示在屏幕右侧并保持置顶，可以拖动标题栏调整位置。
 4. 使用 `Ctrl + Alt + Space` 随时显示或隐藏窗口，使用 `Ctrl + Alt + T` 开启或关闭鼠标穿透。
-5. 点击标题栏的“截图”，拖拽选择当前屏幕区域，截图会自动复制到剪贴板；按 `Esc` 取消。
+5. 点击标题栏的“截图”，拖拽选择区域后标注，点击“完成并复制”写入剪贴板；按 `Esc` 取消。
 6. 点击右上角的“—”会隐藏到系统托盘；双击托盘图标可以重新显示。
 7. 要彻底结束程序，右键托盘图标并选择“退出”。直接关闭窗口只会隐藏程序。
 
@@ -161,7 +172,7 @@ VS Code 原生支持 Markdown 预览：按 `Ctrl + Shift + V` 切换预览；先
 - 模式下拉框：在普通、悬浮、穿透三种模式之间切换。
 - 透明度滑块：设置悬浮闲置或穿透时的透明度，可调范围为 20%–90%。
 - “＋”：根据当前页面新增短语、文件夹、Markdown、软件、命令或输入待办；托盘菜单也提供相应新增入口。
-- “截图”：框选当前屏幕区域，并将截图复制到剪贴板。
+- “截图”：框选当前屏幕区域，画线、画框等标注后复制，或另存 PNG。
 - “翻译”：翻译剪贴板中的英文，也可按 `Ctrl+T`。
 - “—”：隐藏到系统托盘。
 

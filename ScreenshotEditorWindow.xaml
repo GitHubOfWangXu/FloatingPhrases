@@ -1,0 +1,63 @@
+<Window x:Class="FloatingPhrases.ScreenshotEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="编辑截图 · Floating Phrases" Icon="/FloatingPhrases;component/Assets/app.ico"
+        Width="980" Height="720" MinWidth="680" MinHeight="480"
+        WindowStartupLocation="CenterScreen" Background="#F7F8FC" Topmost="True"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <WrapPanel Margin="0,0,0,12">
+            <Label Content="工具" Target="{Binding ElementName=ToolBox}" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ToolBox" Width="100" SelectedIndex="0" Margin="0,0,12,0" AutomationProperties.Name="截图标注工具">
+                <ComboBoxItem Content="矩形"/><ComboBoxItem Content="直线"/><ComboBoxItem Content="箭头"/><ComboBoxItem Content="画笔"/>
+            </ComboBox>
+            <Label Content="颜色" Target="{Binding ElementName=ColorBox}" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ColorBox" Width="88" SelectedIndex="0" SelectedValuePath="Tag" Margin="0,0,12,0" AutomationProperties.Name="标注颜色">
+                <ComboBoxItem Content="红色" Tag="#EF4444"/><ComboBoxItem Content="蓝色" Tag="#2563EB"/>
+                <ComboBoxItem Content="绿色" Tag="#16A34A"/><ComboBoxItem Content="黄色" Tag="#FACC15"/>
+                <ComboBoxItem Content="黑色" Tag="#111827"/><ComboBoxItem Content="白色" Tag="#FFFFFF"/>
+            </ComboBox>
+            <Label Content="线宽" Target="{Binding ElementName=WidthBox}" VerticalAlignment="Center"/>
+            <ComboBox x:Name="WidthBox" Width="76" SelectedIndex="1" SelectedValuePath="Tag" Margin="0,0,16,0" AutomationProperties.Name="标注线宽像素">
+                <ComboBoxItem Content="2 px" Tag="2"/><ComboBoxItem Content="4 px" Tag="4"/>
+                <ComboBoxItem Content="6 px" Tag="6"/><ComboBoxItem Content="10 px" Tag="10"/>
+            </ComboBox>
+            <Button x:Name="UndoButton" Content="撤销" ToolTip="Ctrl+Z" IsEnabled="False" Margin="0,0,8,0" Click="Undo_Click"/>
+            <Button x:Name="RedoButton" Content="重做" ToolTip="Ctrl+Y" IsEnabled="False" Click="Redo_Click"/>
+        </WrapPanel>
+        <Border Grid.Row="1" Background="#DCE1EC" BorderBrush="#C8D0DF" BorderThickness="1" Padding="12" ClipToBounds="True">
+            <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                <Grid x:Name="DrawingSurface" ClipToBounds="True">
+                    <Image x:Name="OriginalImage" Stretch="Fill"/>
+                    <InkCanvas x:Name="AnnotationCanvas" Background="Transparent" EditingMode="None" Cursor="Cross"
+                               PreviewMouseLeftButtonDown="Canvas_MouseDown" PreviewMouseMove="Canvas_MouseMove"
+                               PreviewMouseLeftButtonUp="Canvas_MouseUp" LostMouseCapture="Canvas_LostMouseCapture"
+                               AutomationProperties.Name="截图标注画布"/>
+                    <Polyline x:Name="ShapePreview" IsHitTestVisible="False" StrokeLineJoin="Round"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                </Grid>
+            </Viewbox>
+        </Border>
+        <TextBlock x:Name="StatusText" Grid.Row="2" Foreground="#65708A" TextWrapping="Wrap" Margin="0,10,0,12"
+                   Text="拖动画框或划线；Ctrl+Z 撤销，Ctrl+Y 重做。完成后复制或另存 PNG。" AutomationProperties.LiveSetting="Polite"/>
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Button Content="取消" HorizontalAlignment="Left" Click="Cancel_Click"/>
+            <Button Grid.Column="1" Content="另存 PNG" Margin="0,0,10,0" Click="Save_Click"/>
+            <Button x:Name="CopyButton" Grid.Column="2" Content="完成并复制" Background="#4462E8" Foreground="White"
+                    BorderThickness="0" IsDefault="True" Click="Copy_Click"/>
+        </Grid>
+    </Grid>
+</Window>

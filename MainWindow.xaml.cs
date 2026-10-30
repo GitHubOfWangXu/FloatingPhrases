@@ -609,15 +609,10 @@ public partial class MainWindow : Window
 
             if (selector.ShowDialog() == true && selector.SelectedImage is not null)
             {
-                try
-                {
-                    System.Windows.Clipboard.SetImage(selector.SelectedImage);
-                    resultStatus = $"截图已复制到剪贴板（{selector.SelectedImage.PixelWidth} × {selector.SelectedImage.PixelHeight}）";
-                }
-                catch (ExternalException)
-                {
-                    resultStatus = "截图已完成，但剪贴板暂时被占用，请重试";
-                }
+                var editor = new ScreenshotEditorWindow(selector.SelectedImage);
+                resultStatus = editor.ShowDialog() == true
+                    ? $"标注截图已复制到剪贴板（{selector.SelectedImage.PixelWidth} × {selector.SelectedImage.PixelHeight}）"
+                    : "已关闭截图编辑，剪贴板保持原内容；已另存的 PNG 不受影响";
             }
             else
             {

@@ -57,6 +57,11 @@ var settingsTestFile = Path.Combine(testDirectory, "settings.json");
 try
 {
     Directory.CreateDirectory(testDirectory);
+    if (args.Length == 1 && args[0] == "--screenshot-editor-only")
+    {
+        ScreenshotEditorChecks.Run(testDirectory);
+        return 0;
+    }
     if (args.Length == 1 && args[0] == "--translation-only")
     {
         TranslationChecks.Run(testDirectory);
@@ -77,6 +82,7 @@ try
         TodoChecks.RunClipboardCopy(testDirectory);
         return 0;
     }
+    ScreenshotEditorChecks.Run(testDirectory);
     TranslationChecks.Run(testDirectory);
     ComputerChecks.Run();
     CommandChecks.Run(testDirectory);
