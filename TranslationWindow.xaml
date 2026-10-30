@@ -32,6 +32,9 @@
                       Padding="8,5" Margin="0,0,0,8" AutomationProperties.Name="翻译服务">
                 <ComboBoxItem Content="Qwen · Qwen-MT-Flash（北京）" Tag="{x:Static local:TranslationProvider.Qwen}"/>
                 <ComboBoxItem Content="GLM Coding · GLM-5.3-Flash（直连）" Tag="{x:Static local:TranslationProvider.GlmCoding}"/>
+                <ComboBoxItem Content="硅基流动 · Hunyuan-MT-7B（免费，推荐）" Tag="{x:Static local:TranslationProvider.SiliconFlowHunyuan}"/>
+                <ComboBoxItem Content="硅基流动 · GLM-5.3-Flash（付费）" Tag="{x:Static local:TranslationProvider.SiliconFlowGlm}"/>
+                <ComboBoxItem Content="硅基流动 · Qwen3.5-35B-A3B（付费）" Tag="{x:Static local:TranslationProvider.SiliconFlowQwen}"/>
             </ComboBox>
             <TextBlock Text="输入或粘贴英文后点击翻译；也可复制英文后按 Ctrl+Alt+Y。"
                        TextWrapping="Wrap" Foreground="#65708A"/>

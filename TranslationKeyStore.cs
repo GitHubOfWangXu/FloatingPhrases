@@ -21,6 +21,7 @@ public sealed class TranslationKeyStore
     {
         TranslationProvider.Qwen => _filePath,
         TranslationProvider.GlmCoding => _filePath + ".glm-coding",
+        TranslationProvider.SiliconFlowHunyuan or TranslationProvider.SiliconFlowGlm or TranslationProvider.SiliconFlowQwen => _filePath + ".siliconflow",
         _ => throw new InvalidOperationException("翻译服务无效，未读取或修改密钥。")
     };
 

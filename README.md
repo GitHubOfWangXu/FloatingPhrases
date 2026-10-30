@@ -11,7 +11,7 @@ Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，
 ## 英文翻译
 
 1. 选中英文并按 `Ctrl+C`，再按 `Ctrl+Alt+Y`；也可点击标题栏“翻译”或托盘菜单“翻译剪贴板英文”。
-2. 首次使用时，在翻译窗口选择服务，展开“所选服务的 API Key 配置”并填写对应密钥：Qwen 使用阿里云百炼**北京地域、按量付费** API Key；GLM Coding 使用智谱 **Coding 套餐 API Key**。不要将密钥发到聊天、Issue 或仓库。
+2. 首次使用时，在翻译窗口选择服务，展开“所选服务的 API Key 配置”并填写对应密钥：硅基流动推荐选择 **Hunyuan-MT-7B**，使用硅基流动 API Key；Qwen 使用阿里云百炼**北京地域、按量付费** API Key；GLM Coding 使用智谱 **Coding 套餐 API Key**。不要将密钥发到聊天、Issue 或仓库。
 3. 点击“翻译 / 重试”，查看英文原文与中文译文。后续使用快捷键会直接翻译新复制的文本；“复制译文”主动写入剪贴板，`Esc` 关闭窗口。
 
 也可直接在“英文原文”框输入、粘贴和修改多行英文，再点击“翻译 / 重试”。修改原文会取消旧请求的等待并清除旧译文，不会自动发起新的翻译。
@@ -22,9 +22,11 @@ Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，
 
 GLM Coding 通道直接请求 `https://open.bigmodel.cn/api/coding/paas/v4/chat/completions`，使用 `glm-5.3-flash` 和英译中提示词，不需要启动 ZCode 或其他应用。请求使用 FloatingPhrases 自身身份，不复用其他应用的登录令牌或网关。端点和模型参见[官方接入指南](https://docs.bigmodel.cn/cn/coding-plan/tool/others)与[模型说明](https://docs.bigmodel.cn/cn/coding-plan/latest-model)。套餐资格与客户端使用范围由智谱服务端校验，**本软件不保证自建客户端可以使用套餐额度**；官方支持范围请以[官方 FAQ](https://docs.bigmodel.cn/cn/coding-plan/faq)为准。失败不会自动切换到智谱普通 API、Qwen 或其他收费通道。
 
+硅基流动通道直接请求 `https://api.siliconflow.cn/v1/chat/completions`，推荐 `tencent/Hunyuan-MT-7B`，采用[混元官方翻译模板](https://github.com/Tencent-Hunyuan/Hunyuan-MT/blob/main/README_CN.md)。该模型在 2026-10-30 的[硅基流动价格页](https://www.siliconflow.cn/pricing)标为免费，实际价格、权限和限额以控制台为准。另提供 `zai-org/GLM-5.3-Flash` 和 `Qwen/Qwen3.5-35B-A3B` 两个标明“付费”的对照选项，需手动选择，独立于智谱 Coding 套餐计费。硅基流动模型共用本平台密钥，与其他平台隔离；任何失败均不会自动重试或切换模型、平台。
+
 只有点击翻译入口、按翻译快捷键或手动重试时才发送文本；不持续监听剪贴板，不模拟复制，不读取整篇文档，不保存翻译历史，也不自动替换剪贴板。请勿主动提交不适合发送到云端的内容。取消等待或关闭窗口无法撤回已提交的云端请求。
 
-Qwen 密钥继续保存在 `%APPDATA%\FloatingPhrases\translation-key.bin`；GLM Coding 密钥保存在同目录的 `translation-key.bin.glm-coding`，服务选择保存在 `translation-key.bin.provider`。均使用 Windows DPAPI 当前用户加密，更新时保留加密的 `.bak` 恢复文件，不迁移或覆盖已有 Qwen 密钥。保存密钥或切换服务本身不会联网或验证密钥有效性；损坏文件不会被自动清理。密钥不能直接跨用户或跨设备复制使用，请在新设备重新配置。现有 JSON 数据格式不变。截图按钮仍只截图，本期不包含 OCR。
+Qwen 密钥继续保存在 `%APPDATA%\FloatingPhrases\translation-key.bin`；GLM Coding 密钥保存在同目录的 `translation-key.bin.glm-coding`，硅基流动密钥保存在 `translation-key.bin.siliconflow`，服务选择保存在 `translation-key.bin.provider`。均使用 Windows DPAPI 当前用户加密，更新时保留加密的 `.bak` 恢复文件，不迁移或覆盖已有 Qwen 或 GLM 密钥。保存密钥或切换服务本身不会联网或验证密钥有效性；损坏文件不会被自动清理。密钥不能直接跨用户或跨设备复制使用，请在新设备重新配置。现有 JSON 数据格式不变。截图按钮仍只截图，本期不包含 OCR。
 
 ## 系统要求
 

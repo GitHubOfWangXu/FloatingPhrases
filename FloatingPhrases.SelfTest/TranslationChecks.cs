@@ -59,6 +59,16 @@ internal static class TranslationChecks
                     Check(Equals(provider.SelectedValue, TranslationProvider.GlmCoding) && ((Expander)window.FindName("KeySettings")).IsExpanded
                         && File.ReadAllText(Path.Combine(directory, "editing-key.bin.glm-coding")) == "corrupt-glm-key",
                         "密钥损坏时应允许选中该服务重新配置，保留坏文件且不发送请求");
+                    provider.SelectedValue = TranslationProvider.SiliconFlowHunyuan;
+                    Check(((Expander)window.FindName("KeySettings")).IsExpanded && source.Text == "Keep this text", "硅基流动不能复用其他平台密钥，切换应保留原文");
+                    keyBox.Password = "siliconflow-ui-test-key";
+                    ((Button)window.FindName("SaveKeyButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    provider.SelectedValue = TranslationProvider.SiliconFlowGlm;
+                    Check(!((Expander)window.FindName("KeySettings")).IsExpanded
+                        && editingStore.Load(TranslationProvider.SiliconFlowGlm) == "siliconflow-ui-test-key"
+                        && ((TextBlock)window.FindName("KeyHintText")).Text.Contains("计费"), "硅基流动模型共享本平台密钥，付费选项应明确提示");
+                    provider.SelectedValue = TranslationProvider.SiliconFlowHunyuan;
+                    Check(editingStore.LoadProvider() == TranslationProvider.SiliconFlowHunyuan && result.Text == "", "可记住推荐的免费模型，切换不应自动翻译");
                 }
                 finally { window.Close(); }
             }
@@ -123,6 +133,45 @@ internal static class TranslationChecks
         using (var glmSuccess = new HttpClient(new StubHandler((_, _) => Task.FromResult(Reply("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"GLM译文\",\"reasoning_content\":\"不显示思考内容\"}}]}")))))
             Check(await new TranslationService(glmSuccess).TranslateAsync(text, "glm-test-key", default, TranslationProvider.GlmCoding) == "GLM译文", "GLM 仅提取译文，不展示推理内容");
 
+        foreach (var (selected, model) in new[]
+        {
+            (TranslationProvider.SiliconFlowHunyuan, "tencent/Hunyuan-MT-7B"),
+            (TranslationProvider.SiliconFlowGlm, "zai-org/GLM-5.3-Flash"),
+            (TranslationProvider.SiliconFlowQwen, "Qwen/Qwen3.5-35B-A3B")
+        })
+        {
+            using var sfClient = new HttpClient(new StubHandler(async (request, token) =>
+            {
+                Check(request.RequestUri!.ToString() == "https://api.siliconflow.cn/v1/chat/completions"
+                    && request.Headers.Authorization?.Parameter == "siliconflow-test-key", "硅基流动模型必须使用自己的端点与密钥");
+                using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+                Check(json.RootElement.GetProperty("model").GetString() == model
+                    && !json.RootElement.TryGetProperty("translation_options", out _)
+                    && !json.RootElement.TryGetProperty("reasoning_effort", out _), "不能混用其他平台的模型名或参数");
+                var messages = json.RootElement.GetProperty("messages");
+                if (selected == TranslationProvider.SiliconFlowHunyuan)
+                {
+                    Check(messages.GetArrayLength() == 1 && messages[0].GetProperty("role").GetString() == "user"
+                        && messages[0].GetProperty("content").GetString() == "把下面的文本翻译成简体中文，不要额外解释。\n\n" + text
+                        && !json.RootElement.TryGetProperty("enable_thinking", out _), "混元应使用官方单条用户消息模板，不套通用聊天参数");
+                }
+                else Check(messages.GetArrayLength() == 2 && messages[1].GetProperty("content").GetString() == text
+                    && !json.RootElement.GetProperty("enable_thinking").GetBoolean(), "硅基流动通用模型使用独立翻译提示词并关闭思考");
+                return Reply("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"硅基译文\"}}]}");
+            }));
+            Check(await new TranslationService(sfClient).TranslateAsync(text, "siliconflow-test-key", default, selected) == "硅基译文", "应正常读取硅基流动的译文响应");
+        }
+        var sfDeniedRequests = 0;
+        using (var sfDenied = new HttpClient(new StubHandler((_, _) =>
+        {
+            sfDeniedRequests++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden) { Content = new StringContent("siliconflow-test-key" + text) });
+        })))
+        {
+            var message = await Reject(() => new TranslationService(sfDenied).TranslateAsync(text, "siliconflow-test-key", default, TranslationProvider.SiliconFlowHunyuan));
+            Check(sfDeniedRequests == 1 && message.Contains("硅基流动") && !message.Contains("siliconflow-test-key") && !message.Contains(text), "硅基失败不得泄漏凭据或自动重试、切换付费通道");
+        }
+
         foreach (var body in new[] { "not-json", "{}", "{\"choices\":[]}",
             "{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"content\":\"部分译文\"}}]}",
             "{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\" \"}}]}" })
@@ -158,6 +207,11 @@ internal static class TranslationChecks
         Check(store.Load(TranslationProvider.GlmCoding) == "glm-storage-test-key" && store.Load() == key
             && new TranslationKeyStore(path).LoadProvider() == TranslationProvider.GlmCoding, "密钥应分开存储，重开后应恢复所选服务");
         Check(!Encoding.UTF8.GetString(File.ReadAllBytes(path + ".glm-coding")).Contains("glm-storage-test-key"), "GLM 密钥也必须加密落盘");
+        store.Save("siliconflow-storage-test-key", TranslationProvider.SiliconFlowHunyuan);
+        Check(store.Load(TranslationProvider.SiliconFlowGlm) == "siliconflow-storage-test-key"
+            && store.Load(TranslationProvider.SiliconFlowQwen) == "siliconflow-storage-test-key"
+            && store.Load() == key && store.Load(TranslationProvider.GlmCoding) == "glm-storage-test-key", "同平台模型共享密钥，不同平台保持隔离");
+        Check(!Encoding.UTF8.GetString(File.ReadAllBytes(path + ".siliconflow")).Contains("siliconflow-storage-test-key"), "硅基流动密钥必须加密落盘");
         store.Save("replacement-test-key");
         Check(store.Load() == "replacement-test-key" && new TranslationKeyStore(path + ".bak").Load() == key, "更新应保留可恢复的加密备份");
         try { store.Save("bad key"); throw new Exception("应拒绝无效密钥"); }

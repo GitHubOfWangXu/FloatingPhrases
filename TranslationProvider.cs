@@ -3,5 +3,8 @@ namespace FloatingPhrases;
 public enum TranslationProvider
 {
     Qwen,
-    GlmCoding
+    GlmCoding,
+    SiliconFlowHunyuan,
+    SiliconFlowGlm,
+    SiliconFlowQwen
 }

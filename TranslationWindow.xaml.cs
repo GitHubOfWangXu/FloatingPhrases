@@ -38,11 +38,22 @@ public partial class TranslationWindow : Window
         _providerReady = true;
     }
 
-    private string ProviderName => _provider == TranslationProvider.GlmCoding ? "智谱 GLM Coding / GLM-5.3-Flash" : "阿里云 Qwen-MT-Flash";
+    private string ProviderName => _provider switch
+    {
+        TranslationProvider.GlmCoding => "智谱 GLM Coding / GLM-5.3-Flash",
+        TranslationProvider.SiliconFlowHunyuan => "硅基流动 Hunyuan-MT-7B",
+        TranslationProvider.SiliconFlowGlm => "硅基流动 GLM-5.3-Flash（付费）",
+        TranslationProvider.SiliconFlowQwen => "硅基流动 Qwen3.5-35B-A3B（付费）",
+        _ => "阿里云 Qwen-MT-Flash"
+    };
 
-    private void UpdateKeyHint() => KeyHintText.Text = _provider == TranslationProvider.GlmCoding
-        ? "填写智谱 GLM Coding 套餐 API Key。套餐与客户端资格由服务端校验；失败不会自动转为普通 API 计费。密钥在本机单独加密保存。"
-        : "填写百炼北京地域、按量付费 API Key；不要使用百炼 Coding Plan 密钥。密钥在本机单独加密保存。";
+    private void UpdateKeyHint() => KeyHintText.Text = _provider switch
+    {
+        TranslationProvider.GlmCoding => "填写智谱 GLM Coding 套餐 API Key。套餐与客户端资格由服务端校验；失败不会自动转为普通 API 计费。密钥在本机单独加密保存。",
+        TranslationProvider.Qwen => "填写百炼北京地域、按量付费 API Key；不要使用百炼 Coding Plan 密钥。密钥在本机单独加密保存。",
+        TranslationProvider.SiliconFlowHunyuan => "填写硅基流动 API Key。Hunyuan-MT-7B 当前标为免费，实际价格和限额以硅基流动控制台为准。失败不自动切换付费模型。密钥在本机单独加密保存。",
+        _ => "填写硅基流动 API Key，此选项会按硅基流动价格计费，与 GLM Coding 套餐独立。硅基流动模型共用本机加密密钥，切换不会自动发起翻译。"
+    };
 
     private void ProviderBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
