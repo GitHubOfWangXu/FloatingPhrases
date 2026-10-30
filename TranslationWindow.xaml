@@ -36,7 +36,7 @@
                 <ComboBoxItem Content="硅基流动 · GLM-5.3-Flash（付费）" Tag="{x:Static local:TranslationProvider.SiliconFlowGlm}"/>
                 <ComboBoxItem Content="硅基流动 · Qwen3.5-35B-A3B（付费）" Tag="{x:Static local:TranslationProvider.SiliconFlowQwen}"/>
             </ComboBox>
-            <TextBlock Text="输入或粘贴英文后点击翻译；也可复制英文后按 Ctrl+Alt+Y。"
+            <TextBlock Text="输入或粘贴英文后点击翻译；也可复制英文后按 Ctrl+T。"
                        TextWrapping="Wrap" Foreground="#65708A"/>
         </StackPanel>
         <Label Grid.Row="1" Content="英文原文（可输入或粘贴）" Target="{Binding ElementName=SourceBox}" FontWeight="SemiBold" Foreground="#253047" Padding="0,0,0,6"/>

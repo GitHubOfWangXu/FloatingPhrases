@@ -21,7 +21,7 @@ public sealed class TranslationService
     public async Task<string> TranslateAsync(string text, string apiKey, CancellationToken cancellationToken,
         TranslationProvider provider = TranslationProvider.Qwen)
     {
-        if (string.IsNullOrWhiteSpace(text)) throw new InvalidOperationException("请先选中英文并复制，再按 Ctrl+Alt+Y。");
+        if (string.IsNullOrWhiteSpace(text)) throw new InvalidOperationException("请先选中英文并复制，再按 Ctrl+T。");
         if (text.Length > MaxTextLength) throw new InvalidOperationException($"一次最多翻译 {MaxTextLength:N0} 个字符，请缩小选区后重试。");
         TranslationKeyStore.Validate(apiKey);
         var endpoint = provider switch
