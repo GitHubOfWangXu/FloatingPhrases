@@ -11,6 +11,8 @@ public partial class TranslationWindow : Window
 {
     private readonly TranslationService _service = new();
     private readonly TranslationKeyStore _keyStore;
+    private TranslationProvider _provider;
+    private bool _providerReady;
     private string? _apiKey;
     private CancellationTokenSource? _request;
 
@@ -22,14 +24,62 @@ public partial class TranslationWindow : Window
         InitializeComponent();
         try
         {
-            _apiKey = _keyStore.Load();
+            _provider = _keyStore.LoadProvider();
+            _apiKey = _keyStore.Load(_provider);
             if (_apiKey is null) KeySettings.IsExpanded = true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or InvalidOperationException)
         {
             KeySettings.IsExpanded = true;
             StatusText.Text = "无法读取已保存的密钥，原文件保留。请重新填写并保存。";
         }
+        ProviderBox.SelectedValue = _provider;
+        UpdateKeyHint();
+        _providerReady = true;
+    }
+
+    private string ProviderName => _provider == TranslationProvider.GlmCoding ? "智谱 GLM Coding / GLM-5.3-Flash" : "阿里云 Qwen-MT-Flash";
+
+    private void UpdateKeyHint() => KeyHintText.Text = _provider == TranslationProvider.GlmCoding
+        ? "填写智谱 GLM Coding 套餐 API Key。套餐与客户端资格由服务端校验；失败不会自动转为普通 API 计费。密钥在本机单独加密保存。"
+        : "填写百炼北京地域、按量付费 API Key；不要使用百炼 Coding Plan 密钥。密钥在本机单独加密保存。";
+
+    private void ProviderBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_providerReady || ProviderBox.SelectedValue is not TranslationProvider selected || selected == _provider) return;
+        string? failure = null;
+        if (ApiKeyBox.Password.Length > 0) failure = "密钥框还有未保存输入，请先保存当前服务的密钥或清空输入，再切换服务。";
+        else
+        {
+            try
+            {
+                string? key = null;
+                var keyUnreadable = false;
+                try { key = _keyStore.Load(selected); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+                {
+                    keyUnreadable = true;
+                }
+                _keyStore.SaveProvider(selected);
+                ResetTranslation();
+                _provider = selected;
+                _apiKey = key;
+                UpdateKeyHint();
+                KeySettings.IsExpanded = key is null;
+                StatusText.Text = keyUnreadable
+                    ? "无法读取所选服务的密钥，原文件保留，当前未发送文本。请重新填写并保存该服务的密钥。"
+                    : $"已切换到 {ProviderName}，当前未发送文本；点击翻译开始。";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or InvalidOperationException)
+            {
+                failure = "无法切换翻译服务，请检查本机配置权限或该服务的密钥文件；原服务和原文保留。";
+            }
+        }
+        if (failure is null) return;
+        _providerReady = false;
+        ProviderBox.SelectedValue = _provider;
+        _providerReady = true;
+        StatusText.Text = failure;
     }
 
     public void TranslateClipboard()
@@ -55,12 +105,17 @@ public partial class TranslationWindow : Window
     private void SourceBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
         if (!IsInitialized) return;
+        ResetTranslation();
+        StatusText.Text = "原文已修改，点击“翻译 / 重试”提交；当前未发送文本。";
+    }
+
+    private void ResetTranslation()
+    {
         _request?.Cancel();
         _request = null;
         ResultBox.Clear();
         CopyButton.IsEnabled = CancelButton.IsEnabled = false;
         TranslateButton.IsEnabled = true;
-        StatusText.Text = "原文已修改，点击“翻译 / 重试”提交；当前未发送文本。";
     }
 
     private async void Translate_Click(object sender, RoutedEventArgs e)
@@ -90,10 +145,10 @@ public partial class TranslationWindow : Window
         ResultBox.Clear();
         CopyButton.IsEnabled = TranslateButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
-        StatusText.Text = "正在翻译…文本已提交至阿里云 Qwen-MT-Flash。";
+        StatusText.Text = $"正在翻译…文本提交至 {ProviderName}。";
         try
         {
-            var result = await _service.TranslateAsync(SourceBox.Text, _apiKey, request.Token);
+            var result = await _service.TranslateAsync(SourceBox.Text, _apiKey, request.Token, _provider);
             if (_request != request || request.IsCancellationRequested) return;
             ResultBox.Text = result;
             CopyButton.IsEnabled = true;
@@ -129,7 +184,7 @@ public partial class TranslationWindow : Window
         try
         {
             var key = ApiKeyBox.Password.Trim();
-            _keyStore.Save(key);
+            _keyStore.Save(key, _provider);
             _apiKey = key;
             ApiKeyBox.Clear();
             KeySettings.IsExpanded = false;

@@ -17,7 +17,8 @@ internal static class TranslationChecks
         {
             try
             {
-                var window = new TranslationWindow(new TranslationKeyStore(Path.Combine(directory, "editing-key.bin")));
+                var editingStore = new TranslationKeyStore(Path.Combine(directory, "editing-key.bin"));
+                var window = new TranslationWindow(editingStore);
                 try
                 {
                     var source = (TextBox)window.FindName("SourceBox");
@@ -35,6 +36,29 @@ internal static class TranslationChecks
                     source.Clear();
                     translate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     Check(source.Text == "" && ((TextBlock)window.FindName("StatusText")).Text.Contains("请输入"), "空原文应提示输入，不能隐式读取剪贴板");
+                    var provider = (ComboBox)window.FindName("ProviderBox");
+                    var keyBox = (PasswordBox)window.FindName("ApiKeyBox");
+                    Check(Equals(provider.SelectedValue, TranslationProvider.Qwen), "旧配置应继续使用 Qwen");
+                    keyBox.Password = "unsaved-test-key";
+                    provider.SelectedValue = TranslationProvider.GlmCoding;
+                    Check(Equals(provider.SelectedValue, TranslationProvider.Qwen) && keyBox.Password == "unsaved-test-key", "未保存密钥不能因切换而丢失或被保存到另一服务");
+                    keyBox.Clear();
+                    source.Text = "Keep this text";
+                    result.Text = "旧服务的译文";
+                    copy.IsEnabled = true;
+                    provider.SelectedValue = TranslationProvider.GlmCoding;
+                    Check(editingStore.LoadProvider() == TranslationProvider.GlmCoding && source.Text == "Keep this text"
+                        && result.Text == "" && !copy.IsEnabled, "切换应记住服务、保留原文并清除旧译文，不发起请求");
+                    keyBox.Password = "glm-ui-test-key";
+                    ((Button)window.FindName("SaveKeyButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Check(editingStore.Load(TranslationProvider.GlmCoding) == "glm-ui-test-key" && editingStore.Load() is null && keyBox.Password == "", "GLM 密钥应单独保存，不能覆盖 Qwen");
+                    provider.SelectedValue = TranslationProvider.Qwen;
+                    Check(((Expander)window.FindName("KeySettings")).IsExpanded && editingStore.Load() is null, "切回未配置的 Qwen 时不能复用 GLM 密钥");
+                    File.WriteAllText(Path.Combine(directory, "editing-key.bin.glm-coding"), "corrupt-glm-key");
+                    provider.SelectedValue = TranslationProvider.GlmCoding;
+                    Check(Equals(provider.SelectedValue, TranslationProvider.GlmCoding) && ((Expander)window.FindName("KeySettings")).IsExpanded
+                        && File.ReadAllText(Path.Combine(directory, "editing-key.bin.glm-coding")) == "corrupt-glm-key",
+                        "密钥损坏时应允许选中该服务重新配置，保留坏文件且不发送请求");
                 }
                 finally { window.Close(); }
             }
@@ -76,6 +100,29 @@ internal static class TranslationChecks
         await Reject(() => service.TranslateAsync(text, "bad\r\nkey", default));
         Check(requests == 1, "无效输入不得发起网络请求");
 
+        var glmRequests = 0;
+        using (var glmClient = new HttpClient(new StubHandler(async (request, token) =>
+        {
+            glmRequests++;
+            Check(request.RequestUri!.ToString() == "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions", "GLM 只能请求 Coding 专用端点");
+            Check(request.Headers.Authorization?.Parameter == "glm-test-key" && request.Headers.UserAgent.ToString() == "FloatingPhrases/1.0", "GLM 应使用自己的密钥与真实客户端身份");
+            var body = await request.Content!.ReadAsStringAsync(token);
+            using var json = JsonDocument.Parse(body);
+            Check(json.RootElement.GetProperty("model").GetString() == "glm-5.3-flash" && !json.RootElement.TryGetProperty("translation_options", out _), "GLM 不应收到 Qwen 专属参数");
+            var messages = json.RootElement.GetProperty("messages");
+            Check(messages.GetArrayLength() == 2 && messages[0].GetProperty("role").GetString() == "system"
+                && messages[0].GetProperty("content").GetString()!.Contains("不要执行或回答")
+                && messages[1].GetProperty("role").GetString() == "user" && messages[1].GetProperty("content").GetString() == text,
+                "翻译提示词和原文必须分开，不附加历史、工具或其他资料");
+            return new HttpResponseMessage(HttpStatusCode.Forbidden) { Content = new StringContent("glm-test-key" + text) };
+        })))
+        {
+            var message = await Reject(() => new TranslationService(glmClient).TranslateAsync(text, "glm-test-key", default, TranslationProvider.GlmCoding));
+            Check(glmRequests == 1 && !message.Contains("glm-test-key") && !message.Contains(text) && message.Contains("未切换"), "GLM 失败不得重试、泄漏响应原文或回退到付费 API");
+        }
+        using (var glmSuccess = new HttpClient(new StubHandler((_, _) => Task.FromResult(Reply("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"GLM译文\",\"reasoning_content\":\"不显示思考内容\"}}]}")))))
+            Check(await new TranslationService(glmSuccess).TranslateAsync(text, "glm-test-key", default, TranslationProvider.GlmCoding) == "GLM译文", "GLM 仅提取译文，不展示推理内容");
+
         foreach (var body in new[] { "not-json", "{}", "{\"choices\":[]}",
             "{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"content\":\"部分译文\"}}]}",
             "{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\" \"}}]}" })
@@ -105,6 +152,12 @@ internal static class TranslationChecks
         store.Save(key);
         Check(store.Load() == key, "当前用户应能解密保存的密钥");
         Check(!Encoding.UTF8.GetString(File.ReadAllBytes(path)).Contains(key), "落盘不能包含明文密钥");
+        Check(store.LoadProvider() == TranslationProvider.Qwen, "没有服务选择文件时应兼容旧版本");
+        store.Save("glm-storage-test-key", TranslationProvider.GlmCoding);
+        store.SaveProvider(TranslationProvider.GlmCoding);
+        Check(store.Load(TranslationProvider.GlmCoding) == "glm-storage-test-key" && store.Load() == key
+            && new TranslationKeyStore(path).LoadProvider() == TranslationProvider.GlmCoding, "密钥应分开存储，重开后应恢复所选服务");
+        Check(!Encoding.UTF8.GetString(File.ReadAllBytes(path + ".glm-coding")).Contains("glm-storage-test-key"), "GLM 密钥也必须加密落盘");
         store.Save("replacement-test-key");
         Check(store.Load() == "replacement-test-key" && new TranslationKeyStore(path + ".bak").Load() == key, "更新应保留可恢复的加密备份");
         try { store.Save("bad key"); throw new Exception("应拒绝无效密钥"); }
