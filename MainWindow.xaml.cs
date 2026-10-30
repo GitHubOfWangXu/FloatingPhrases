@@ -18,10 +18,12 @@ public partial class MainWindow : Window
     private const string DefaultStatus = "Ctrl+Alt+Space 显隐 · Ctrl+Alt+T 穿透";
     private const int VisibilityHotkeyId = 0x4650;
     private const int ClickThroughHotkeyId = 0x4651;
+    private const int TranslationHotkeyId = 0x4652;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint VkSpace = 0x20;
     private const uint VkT = 0x54;
+    private const uint VkY = 0x59;
     private const int WmHotkey = 0x0312;
 
     private readonly ObservableCollection<Phrase> _phrases;
@@ -41,6 +43,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _settingsSaveTimer;
     private readonly DispatcherTimer _memoryTimer;
     private HwndSource? _source;
+    private TranslationWindow? _translationWindow;
     private object? _dragCandidate;
     private System.Windows.Point _dragStart;
     private bool _initializingSettings = true;
@@ -149,6 +152,7 @@ public partial class MainWindow : Window
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
         menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
         menu.Items.Add("新增命令", null, (_, _) => Dispatcher.Invoke(ShowCommandInput));
+        menu.Items.Add("翻译剪贴板英文 (Ctrl+Alt+Y)", null, (_, _) => Dispatcher.Invoke(ShowTranslation));
         menu.Items.Add(new Forms.ToolStripSeparator());
         var modes = new Forms.ToolStripMenuItem("窗口模式");
         modes.DropDownItems.Add("普通", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Normal)));
@@ -180,9 +184,11 @@ public partial class MainWindow : Window
             helper.Handle, VisibilityHotkeyId, ModControl | ModAlt, VkSpace);
         var clickThroughRegistered = RegisterHotKey(
             helper.Handle, ClickThroughHotkeyId, ModControl | ModAlt, VkT);
-        if (!visibilityRegistered || !clickThroughRegistered)
+        var translationRegistered = RegisterHotKey(
+            helper.Handle, TranslationHotkeyId, ModControl | ModAlt | 0x4000, VkY);
+        if (!visibilityRegistered || !clickThroughRegistered || !translationRegistered)
         {
-            StatusText.Text = "部分全局快捷键已被其他程序占用";
+            StatusText.Text = !translationRegistered ? "翻译快捷键被占用，请使用标题栏或托盘的翻译入口" : "部分全局快捷键已被其他程序占用";
             _statusTimer.Stop();
         }
 
@@ -199,6 +205,11 @@ public partial class MainWindow : Window
         else if (msg == WmHotkey && wParam.ToInt32() == ClickThroughHotkeyId)
         {
             ToggleClickThroughMode();
+            handled = true;
+        }
+        else if (msg == WmHotkey && wParam.ToInt32() == TranslationHotkeyId)
+        {
+            ShowTranslation();
             handled = true;
         }
 
@@ -564,6 +575,21 @@ public partial class MainWindow : Window
         {
             SetStatus("剪贴板暂时被占用，请重试");
         }
+    }
+
+    private void Translation_Click(object sender, RoutedEventArgs e) => ShowTranslation();
+
+    private void ShowTranslation()
+    {
+        if (_translationWindow is null)
+        {
+            _translationWindow = new TranslationWindow();
+            _translationWindow.Closed += (_, _) => _translationWindow = null;
+        }
+        _translationWindow.Show();
+        _translationWindow.WindowState = WindowState.Normal;
+        _translationWindow.Activate();
+        _translationWindow.TranslateClipboard();
     }
 
     private async void Screenshot_Click(object sender, RoutedEventArgs e)
@@ -1017,6 +1043,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _translationWindow?.Close();
         TransferView.Dispose();
         _memoryTimer.Stop();
         _edgeDock.Dispose();
@@ -1025,6 +1052,7 @@ public partial class MainWindow : Window
             var handle = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(handle, VisibilityHotkeyId);
             UnregisterHotKey(handle, ClickThroughHotkeyId);
+            UnregisterHotKey(handle, TranslationHotkeyId);
             _source.RemoveHook(WindowProc);
         }
 

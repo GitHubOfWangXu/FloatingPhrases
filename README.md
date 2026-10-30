@@ -4,9 +4,29 @@
 
 把每天反复找的东西，放到桌面边上。
 
-Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，项目文件夹、Markdown 文档和软件集中打开，临时待办随手记。不用时贴边收起，用时悬停展开。数据保存在本机，无需注册账号。
+Floating Phrases 是一个 Windows 悬浮工具：常用回复点一下复制，项目文件夹、Markdown 文档和软件集中打开，临时待办随手记。不用时贴边收起，用时悬停展开。日常数据保存在本机，无需注册应用账号；可选的英文翻译需要联网并自行配置所选服务的 API Key。
 
 适合经常重复回复、切换项目目录，以及希望随手记录待办的 Windows 用户。支持搜索、置顶与拖动排序；这是一个轻量桌面入口，不是跨设备同步或团队任务管理工具。
+
+## 英文翻译
+
+1. 选中英文并按 `Ctrl+C`，再按 `Ctrl+Alt+Y`；也可点击标题栏“翻译”或托盘菜单“翻译剪贴板英文”。
+2. 首次使用时，在翻译窗口选择服务，展开“所选服务的 API Key 配置”并填写对应密钥：硅基流动推荐选择 **Hunyuan-MT-7B**，使用硅基流动 API Key；Qwen 使用阿里云百炼**北京地域、按量付费** API Key；GLM Coding 使用智谱 **Coding 套餐 API Key**。不要将密钥发到聊天、Issue 或仓库。
+3. 点击“翻译 / 重试”，查看英文原文与中文译文。后续使用快捷键会直接翻译新复制的文本；“复制译文”主动写入剪贴板，`Esc` 关闭窗口。
+
+也可直接在“英文原文”框输入、粘贴和修改多行英文，再点击“翻译 / 重试”。修改原文会取消旧请求的等待并清除旧译文，不会自动发起新的翻译。
+
+软件会记住上次选择的服务。切换服务保留原文、清除旧译文，不自动发送请求；密钥框存在未保存输入时会阻止切换，请先保存或清空输入。
+
+采用 `qwen-mt-flash`，通过北京地域的 [DashScope 官方接口](https://help.aliyun.com/zh/model-studio/base-url) 发起英译中请求。需要在百炼控制台开通模型权限并保证可用额度，费用按 [官方价格](https://help.aliyun.com/zh/model-studio/model-pricing) 结算。每次最多 12,000 个字符，不自动截断；超时或失败保留原文，不自动重试计费请求。
+
+GLM Coding 通道直接请求 `https://open.bigmodel.cn/api/coding/paas/v4/chat/completions`，使用 `glm-5.3-flash` 和英译中提示词，不需要启动 ZCode 或其他应用。请求使用 FloatingPhrases 自身身份，不复用其他应用的登录令牌或网关。端点和模型参见[官方接入指南](https://docs.bigmodel.cn/cn/coding-plan/tool/others)与[模型说明](https://docs.bigmodel.cn/cn/coding-plan/latest-model)。套餐资格与客户端使用范围由智谱服务端校验，**本软件不保证自建客户端可以使用套餐额度**；官方支持范围请以[官方 FAQ](https://docs.bigmodel.cn/cn/coding-plan/faq)为准。失败不会自动切换到智谱普通 API、Qwen 或其他收费通道。
+
+硅基流动通道直接请求 `https://api.siliconflow.cn/v1/chat/completions`，推荐 `tencent/Hunyuan-MT-7B`，采用[混元官方翻译模板](https://github.com/Tencent-Hunyuan/Hunyuan-MT/blob/main/README_CN.md)。该模型在 2026-10-30 的[硅基流动价格页](https://www.siliconflow.cn/pricing)标为免费，实际价格、权限和限额以控制台为准。另提供 `zai-org/GLM-5.3-Flash` 和 `Qwen/Qwen3.5-35B-A3B` 两个标明“付费”的对照选项，需手动选择，独立于智谱 Coding 套餐计费。硅基流动模型共用本平台密钥，与其他平台隔离；任何失败均不会自动重试或切换模型、平台。
+
+只有点击翻译入口、按翻译快捷键或手动重试时才发送文本；不持续监听剪贴板，不模拟复制，不读取整篇文档，不保存翻译历史，也不自动替换剪贴板。请勿主动提交不适合发送到云端的内容。取消等待或关闭窗口无法撤回已提交的云端请求。
+
+Qwen 密钥继续保存在 `%APPDATA%\FloatingPhrases\translation-key.bin`；GLM Coding 密钥保存在同目录的 `translation-key.bin.glm-coding`，硅基流动密钥保存在 `translation-key.bin.siliconflow`，服务选择保存在 `translation-key.bin.provider`。均使用 Windows DPAPI 当前用户加密，更新时保留加密的 `.bak` 恢复文件，不迁移或覆盖已有 Qwen 或 GLM 密钥。保存密钥或切换服务本身不会联网或验证密钥有效性；损坏文件不会被自动清理。密钥不能直接跨用户或跨设备复制使用，请在新设备重新配置。现有 JSON 数据格式不变。截图按钮仍只截图，本期不包含 OCR。
 
 ## 系统要求
 
@@ -140,6 +160,7 @@ VS Code 原生支持 Markdown 预览：按 `Ctrl + Shift + V` 切换预览；先
 - 透明度滑块：设置悬浮闲置或穿透时的透明度，可调范围为 20%–90%。
 - “＋”：根据当前页面新增短语、文件夹、Markdown、软件、命令或输入待办；托盘菜单也提供相应新增入口。
 - “截图”：框选当前屏幕区域，并将截图复制到剪贴板。
+- “翻译”：翻译剪贴板中的英文，也可按 `Ctrl+Alt+Y`。
 - “—”：隐藏到系统托盘。
 
 ### 三种窗口模式

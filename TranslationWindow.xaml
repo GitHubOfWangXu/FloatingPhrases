@@ -1,0 +1,67 @@
+<Window x:Class="FloatingPhrases.TranslationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:FloatingPhrases"
+        Title="英文 → 中文 · Floating Phrases" Icon="/FloatingPhrases;component/Assets/app.ico"
+        Width="560" Height="680" MinWidth="460" MinHeight="600"
+        WindowStartupLocation="CenterScreen" Background="#F7F8FC" Topmost="True"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="BorderBrush" Value="#D8DDEA"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,14">
+            <ComboBox x:Name="ProviderBox" SelectedValuePath="Tag" SelectionChanged="ProviderBox_SelectionChanged"
+                      Padding="8,5" Margin="0,0,0,8" AutomationProperties.Name="翻译服务">
+                <ComboBoxItem Content="Qwen · Qwen-MT-Flash（北京）" Tag="{x:Static local:TranslationProvider.Qwen}"/>
+                <ComboBoxItem Content="GLM Coding · GLM-5.3-Flash（直连）" Tag="{x:Static local:TranslationProvider.GlmCoding}"/>
+                <ComboBoxItem Content="硅基流动 · Hunyuan-MT-7B（免费，推荐）" Tag="{x:Static local:TranslationProvider.SiliconFlowHunyuan}"/>
+                <ComboBoxItem Content="硅基流动 · GLM-5.3-Flash（付费）" Tag="{x:Static local:TranslationProvider.SiliconFlowGlm}"/>
+                <ComboBoxItem Content="硅基流动 · Qwen3.5-35B-A3B（付费）" Tag="{x:Static local:TranslationProvider.SiliconFlowQwen}"/>
+            </ComboBox>
+            <TextBlock Text="输入或粘贴英文后点击翻译；也可复制英文后按 Ctrl+Alt+Y。"
+                       TextWrapping="Wrap" Foreground="#65708A"/>
+        </StackPanel>
+        <Label Grid.Row="1" Content="英文原文（可输入或粘贴）" Target="{Binding ElementName=SourceBox}" FontWeight="SemiBold" Foreground="#253047" Padding="0,0,0,6"/>
+        <TextBox x:Name="SourceBox" Grid.Row="2" IsReadOnly="False" AcceptsReturn="True"
+                 TextChanged="SourceBox_TextChanged" AutomationProperties.Name="英文原文"/>
+        <Label Grid.Row="3" Content="中文译文" Target="{Binding ElementName=ResultBox}" FontWeight="SemiBold" Foreground="#253047" Padding="0,14,0,6"/>
+        <TextBox x:Name="ResultBox" Grid.Row="4" AutomationProperties.Name="中文译文"/>
+        <TextBlock x:Name="StatusText" Grid.Row="5" Text="请输入或粘贴英文，再点击翻译；仅主动翻译时发送文本到所选服务。"
+                   TextWrapping="Wrap" Foreground="#65708A" Margin="0,12,0,10" AutomationProperties.LiveSetting="Polite"/>
+        <Expander x:Name="KeySettings" Grid.Row="6" Header="所选服务的 API Key 配置" Margin="0,0,0,12">
+            <StackPanel Margin="0,10,0,0">
+                <TextBlock x:Name="KeyHintText" Text="请先选择翻译服务。密钥分别加密保存，保存不会发起翻译。"
+                           TextWrapping="Wrap" Foreground="#65708A" FontSize="12" Margin="0,0,0,8"/>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <PasswordBox x:Name="ApiKeyBox" Padding="8" MaxLength="512" AutomationProperties.Name="所选翻译服务的 API Key"/>
+                    <Button x:Name="SaveKeyButton" Grid.Column="1" Content="保存密钥" Margin="8,0,0,0" Click="SaveKey_Click"/>
+                </Grid>
+            </StackPanel>
+        </Expander>
+        <Grid Grid.Row="7">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Button x:Name="CancelButton" Content="取消请求" HorizontalAlignment="Left" IsEnabled="False" Click="Cancel_Click"/>
+            <Button x:Name="CopyButton" Grid.Column="1" Content="复制译文" Margin="0,0,8,0" IsEnabled="False" Click="Copy_Click"/>
+            <Button x:Name="TranslateButton" Grid.Column="2" Content="翻译 / 重试" Background="#4462E8" Foreground="White" BorderThickness="0" Click="Translate_Click"/>
+        </Grid>
+    </Grid>
+</Window>
