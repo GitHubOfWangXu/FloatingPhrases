@@ -23,7 +23,6 @@ public partial class MainWindow : Window
     private const uint ModControl = 0x0002;
     private const uint VkSpace = 0x20;
     private const uint VkT = 0x54;
-    private const uint VkY = 0x59;
     private const int WmHotkey = 0x0312;
 
     private readonly ObservableCollection<Phrase> _phrases;
@@ -152,7 +151,7 @@ public partial class MainWindow : Window
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
         menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
         menu.Items.Add("新增命令", null, (_, _) => Dispatcher.Invoke(ShowCommandInput));
-        menu.Items.Add("翻译剪贴板英文 (Ctrl+Alt+Y)", null, (_, _) => Dispatcher.Invoke(ShowTranslation));
+        menu.Items.Add("翻译剪贴板英文 (Ctrl+T)", null, (_, _) => Dispatcher.Invoke(ShowTranslation));
         menu.Items.Add(new Forms.ToolStripSeparator());
         var modes = new Forms.ToolStripMenuItem("窗口模式");
         modes.DropDownItems.Add("普通", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Normal)));
@@ -185,7 +184,7 @@ public partial class MainWindow : Window
         var clickThroughRegistered = RegisterHotKey(
             helper.Handle, ClickThroughHotkeyId, ModControl | ModAlt, VkT);
         var translationRegistered = RegisterHotKey(
-            helper.Handle, TranslationHotkeyId, ModControl | ModAlt | 0x4000, VkY);
+            helper.Handle, TranslationHotkeyId, ModControl | 0x4000, VkT);
         if (!visibilityRegistered || !clickThroughRegistered || !translationRegistered)
         {
             StatusText.Text = !translationRegistered ? "翻译快捷键被占用，请使用标题栏或托盘的翻译入口" : "部分全局快捷键已被其他程序占用";
