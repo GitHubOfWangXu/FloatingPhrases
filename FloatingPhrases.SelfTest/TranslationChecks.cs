@@ -3,11 +3,49 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
 using FloatingPhrases;
 
 internal static class TranslationChecks
 {
-    public static void Run(string directory) => RunAsync(directory).GetAwaiter().GetResult();
+    public static void Run(string directory)
+    {
+        RunAsync(directory).GetAwaiter().GetResult();
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new TranslationWindow(new TranslationKeyStore(Path.Combine(directory, "editing-key.bin")));
+                try
+                {
+                    var source = (TextBox)window.FindName("SourceBox");
+                    var result = (TextBox)window.FindName("ResultBox");
+                    var copy = (Button)window.FindName("CopyButton");
+                    var translate = (Button)window.FindName("TranslateButton");
+                    Check(!source.IsReadOnly && source.AcceptsReturn && result.IsReadOnly, "原文应支持多行输入，译文仍只读");
+                    source.Text = "Hello\nWorld";
+                    result.Text = "旧译文";
+                    copy.IsEnabled = true;
+                    source.AppendText("!");
+                    Check(result.Text == "" && !copy.IsEnabled && translate.IsEnabled, "修改原文应清除旧译文并允许主动重译");
+                    translate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Check(source.Text == "Hello\nWorld!" && !File.Exists(Path.Combine(directory, "editing-key.bin")), "未配置密钥时应保留手动输入，不创建凭据");
+                    source.Clear();
+                    translate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Check(source.Text == "" && ((TextBlock)window.FindName("StatusText")).Text.Contains("请输入"), "空原文应提示输入，不能隐式读取剪贴板");
+                }
+                finally { window.Close(); }
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failure is not null) throw new InvalidOperationException("翻译手动输入控件检查失败", failure);
+        Console.WriteLine("翻译手动输入控件检查通过；未显示窗口、读取剪贴板或访问真实密钥。");
+    }
 
     private static async Task RunAsync(string directory)
     {

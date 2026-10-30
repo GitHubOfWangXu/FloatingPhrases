@@ -26,13 +26,14 @@
             <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Text="复制英文后按 Ctrl+Alt+Y；仅主动翻译时发送文本到阿里云。"
+        <TextBlock Text="输入或粘贴英文后点击翻译；也可复制英文后按 Ctrl+Alt+Y。"
                    TextWrapping="Wrap" Foreground="#65708A" Margin="0,0,0,14"/>
-        <Label Grid.Row="1" Content="英文原文" Target="{Binding ElementName=SourceBox}" FontWeight="SemiBold" Foreground="#253047" Padding="0,0,0,6"/>
-        <TextBox x:Name="SourceBox" Grid.Row="2" AutomationProperties.Name="英文原文"/>
+        <Label Grid.Row="1" Content="英文原文（可输入或粘贴）" Target="{Binding ElementName=SourceBox}" FontWeight="SemiBold" Foreground="#253047" Padding="0,0,0,6"/>
+        <TextBox x:Name="SourceBox" Grid.Row="2" IsReadOnly="False" AcceptsReturn="True"
+                 TextChanged="SourceBox_TextChanged" AutomationProperties.Name="英文原文"/>
         <Label Grid.Row="3" Content="中文译文" Target="{Binding ElementName=ResultBox}" FontWeight="SemiBold" Foreground="#253047" Padding="0,14,0,6"/>
         <TextBox x:Name="ResultBox" Grid.Row="4" AutomationProperties.Name="中文译文"/>
-        <TextBlock x:Name="StatusText" Grid.Row="5" Text="请先复制英文，再按快捷键或点击翻译。"
+        <TextBlock x:Name="StatusText" Grid.Row="5" Text="请输入或粘贴英文，再点击翻译；仅主动翻译时发送文本到阿里云。"
                    TextWrapping="Wrap" Foreground="#65708A" Margin="0,12,0,10" AutomationProperties.LiveSetting="Polite"/>
         <Expander x:Name="KeySettings" Grid.Row="6" Header="API Key 配置（北京地域）" Margin="0,0,0,12">
             <StackPanel Margin="0,10,0,0">

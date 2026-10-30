@@ -10,12 +10,15 @@ namespace FloatingPhrases;
 public partial class TranslationWindow : Window
 {
     private readonly TranslationService _service = new();
-    private readonly TranslationKeyStore _keyStore = new();
+    private readonly TranslationKeyStore _keyStore;
     private string? _apiKey;
     private CancellationTokenSource? _request;
 
-    public TranslationWindow()
+    public TranslationWindow() : this(new TranslationKeyStore()) { }
+
+    public TranslationWindow(TranslationKeyStore keyStore)
     {
+        _keyStore = keyStore;
         InitializeComponent();
         try
         {
@@ -40,30 +43,37 @@ public partial class TranslationWindow : Window
         }
         if (string.IsNullOrWhiteSpace(text))
         {
-            StatusText.Text = "剪贴板中没有文字，请先选中英文并复制。";
+            StatusText.Text = "剪贴板中没有文字，也可在上方直接输入或粘贴英文后点击翻译。";
+            SourceBox.Focus();
             return;
         }
         if (_request is not null && SourceBox.Text == text) return;
+        SourceBox.Text = text;
+        Translate_Click(this, new RoutedEventArgs());
+    }
+
+    private void SourceBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (!IsInitialized) return;
         _request?.Cancel();
         _request = null;
-        TranslateButton.IsEnabled = true;
-        CancelButton.IsEnabled = false;
-        SourceBox.Text = text;
         ResultBox.Clear();
-        CopyButton.IsEnabled = false;
-        Translate_Click(this, new RoutedEventArgs());
+        CopyButton.IsEnabled = CancelButton.IsEnabled = false;
+        TranslateButton.IsEnabled = true;
+        StatusText.Text = "原文已修改，点击“翻译 / 重试”提交；当前未发送文本。";
     }
 
     private async void Translate_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(SourceBox.Text))
         {
-            TranslateClipboard();
+            StatusText.Text = "请输入或粘贴需要翻译的英文。";
+            SourceBox.Focus();
             return;
         }
         if (SourceBox.Text.Length > TranslationService.MaxTextLength)
         {
-            StatusText.Text = $"一次最多翻译 {TranslationService.MaxTextLength:N0} 个字符，请缩小选区后重新复制。";
+            StatusText.Text = $"一次最多翻译 {TranslationService.MaxTextLength:N0} 个字符，请缩短原文后重试。";
             return;
         }
         if (string.IsNullOrEmpty(_apiKey))
