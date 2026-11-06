@@ -1,4 +1,4 @@
-<Window x:Class="FloatingPhrases.ScreenshotWindow"
+<Window Style="{DynamicResource {x:Type Window}}" x:Class="FloatingPhrases.ScreenshotWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="截图"
@@ -17,7 +17,7 @@
         <Canvas x:Name="SelectionCanvas" Background="#18000000">
             <Border x:Name="SelectionBorder"
                     Visibility="Collapsed"
-                    BorderBrush="#4B7BFF"
+                    BorderBrush="{DynamicResource PrimaryForegroundBrush}"
                     BorderThickness="2"
                     Background="#22FFFFFF">
                 <Border.Effect>
@@ -27,11 +27,11 @@
             <Border Canvas.Left="18"
                     Canvas.Top="18"
                     Padding="12,7"
-                    Background="#CC17213B"
+                    Background="{DynamicResource OverlayBrush}"
                     CornerRadius="7"
                     IsHitTestVisible="False">
                 <TextBlock Text="拖拽选择截图区域 · Esc 取消"
-                           Foreground="White"
+                           Foreground="{DynamicResource CardBrush}"
                            FontSize="13" />
             </Border>
         </Canvas>
