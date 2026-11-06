@@ -37,6 +37,7 @@ internal static class LayoutChecks
         var doc = XDocument.Load(Path.Combine(sourceRoot, "MainWindow.xaml"));
         var root = doc.Root!;
         root.Name = ui + "UserControl";
+        root.SetAttributeValue("Style", "{DynamicResource {x:Type UserControl}}");
         root.Element(ui + "Window.Resources")!.Name = ui + "UserControl.Resources";
         foreach (var name in new[] { "Title", "Icon", "WindowStyle", "ResizeMode", "AllowsTransparency", "Topmost", "ShowInTaskbar" })
             root.Attribute(name)?.Remove();
