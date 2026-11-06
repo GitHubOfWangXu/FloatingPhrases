@@ -17,7 +17,7 @@
                 <ComboBox x:Name="AddressBox" MinHeight="30" ToolTip="选择手机所在 Wi-Fi 或热点对应的电脑网卡" AutomationProperties.Name="互传网络"/>
                 <Button x:Name="RefreshButton" Grid.Column="1" Content="刷新" Margin="7,0,0,0" Click="Refresh_Click" Style="{DynamicResource TransferButton}"/>
             </Grid>
-            <Border x:Name="SessionPanel" Visibility="Collapsed" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,10,0,0">
+            <Border x:Name="SessionPanel" Visibility="Collapsed" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource CardRadius}" Padding="10" Margin="0,10,0,0">
                 <StackPanel>
                     <Image x:Name="QrImage" Width="160" Height="160" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor" AutomationProperties.Name="手机扫描此二维码打开互传网页"/>
                     <TextBlock Text="手机扫一扫，在网页中上传或下载" HorizontalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="0,4,0,8"/>

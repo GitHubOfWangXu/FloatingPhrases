@@ -74,6 +74,7 @@ public sealed class SettingsStore
     private static WindowSettings Normalize(WindowSettings settings) => new()
     {
         Mode = Enum.IsDefined(settings.Mode) ? settings.Mode : WindowMode.Floating,
+        Theme = Enum.IsDefined(settings.Theme) ? settings.Theme : AppTheme.Shadcn,
         IdleOpacity = double.IsFinite(settings.IdleOpacity)
             ? Math.Clamp(settings.IdleOpacity, 0.2, 0.9)
             : 0.35

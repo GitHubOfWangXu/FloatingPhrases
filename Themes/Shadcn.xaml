@@ -21,15 +21,21 @@
     <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#F4F4F5" />
     <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#09090B" />
 
+    <CornerRadius x:Key="PanelRadius">12</CornerRadius>
+    <CornerRadius x:Key="HeaderRadius">12,12,0,0</CornerRadius>
+    <CornerRadius x:Key="FooterRadius">0,0,12,12</CornerRadius>
+    <CornerRadius x:Key="CardRadius">8</CornerRadius>
+    <DropShadowEffect x:Key="PanelShadow" BlurRadius="18" ShadowDepth="3" Opacity="0.10" Color="#18181B" />
+
     <Style TargetType="Window">
-        <Setter Property="FontFamily" Value="Segoe UI" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="{DynamicResource {x:Static SystemFonts.MessageFontFamilyKey}}" />
+        <Setter Property="FontSize" Value="{DynamicResource {x:Static SystemFonts.MessageFontSizeKey}}" />
         <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
         <Setter Property="Background" Value="{StaticResource BackgroundBrush}" />
     </Style>
     <Style TargetType="UserControl">
-        <Setter Property="FontFamily" Value="Segoe UI" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="{DynamicResource {x:Static SystemFonts.MessageFontFamilyKey}}" />
+        <Setter Property="FontSize" Value="{DynamicResource {x:Static SystemFonts.MessageFontSizeKey}}" />
         <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
     </Style>
 
@@ -39,7 +45,7 @@
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="12,6" />
-        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -73,6 +79,7 @@
         <Setter Property="Padding" Value="12,7" /><Setter Property="MinHeight" Value="34" />
     </Style>
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ShadcnButton}">
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
         <Setter Property="Foreground" Value="{StaticResource PrimaryForegroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
@@ -82,6 +89,11 @@
         <Setter Property="Margin" Value="4,0,0,0" /><Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+    </Style>
+    <Style x:Key="AddEntryButtonStyle" TargetType="Button" BasedOn="{StaticResource IconButton}">
+        <Style.Triggers><DataTrigger Binding="{Binding IsSelected, ElementName=ComputerTab}" Value="True">
+            <Setter Property="IsEnabled" Value="False" />
+        </DataTrigger></Style.Triggers>
     </Style>
     <Style x:Key="ItemAction" TargetType="Button" BasedOn="{StaticResource IconButton}">
         <Setter Property="Width" Value="27" /><Setter Property="Height" Value="27" />
@@ -197,7 +209,6 @@
             </Border>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="{StaticResource SecondaryBrush}" /></Trigger>
-                <Trigger Property="IsSelected" Value="True"><Setter Property="FontWeight" Value="SemiBold" /></Trigger>
                 <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Row" Property="Opacity" Value="0.45" /></Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate></Setter.Value></Setter>
@@ -244,7 +255,7 @@
     </Style>
     <Style TargetType="TabItem">
         <Setter Property="Foreground" Value="{StaticResource MutedBrush}" /><Setter Property="FontSize" Value="12" />
-        <Setter Property="FontWeight" Value="Medium" /><Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontWeight" Value="Normal" /><Setter Property="Background" Value="Transparent" />
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
             <Border x:Name="Tab" Background="{TemplateBinding Background}" CornerRadius="5" Padding="2,8" Margin="1,0"
                     BorderThickness="1" BorderBrush="Transparent">
@@ -362,7 +373,7 @@
     </Style>
     <Style TargetType="primitives:DataGridColumnHeader">
         <Setter Property="Background" Value="{StaticResource SubtleBrush}" /><Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-        <Setter Property="FontWeight" Value="Medium" /><Setter Property="Padding" Value="10,8" />
+        <Setter Property="FontWeight" Value="Normal" /><Setter Property="Padding" Value="10,8" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" /><Setter Property="BorderThickness" Value="0,0,0,1" />
     </Style>
     <Style TargetType="DataGridCell">
