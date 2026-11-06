@@ -26,7 +26,7 @@
             <Button Style="{DynamicResource DialogButton}" x:Name="UndoButton" Content="撤销" ToolTip="Ctrl+Z" IsEnabled="False" Margin="0,0,8,0" Click="Undo_Click"/>
             <Button Style="{DynamicResource DialogButton}" x:Name="RedoButton" Content="重做" ToolTip="Ctrl+Y" IsEnabled="False" Click="Redo_Click"/>
         </WrapPanel>
-        <Border Grid.Row="1" Background="{DynamicResource SecondaryBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" ClipToBounds="True">
+        <Border Grid.Row="1" Background="{DynamicResource SecondaryBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource CardRadius}" Padding="12" ClipToBounds="True">
             <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
                 <Grid x:Name="DrawingSurface" ClipToBounds="True">
                     <Image x:Name="OriginalImage" Stretch="Fill"/>

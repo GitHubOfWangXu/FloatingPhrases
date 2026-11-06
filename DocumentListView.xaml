@@ -59,7 +59,7 @@
         </Grid>
         <TextBlock x:Name="FeedbackText" Grid.Row="2" Margin="6,4,6,6" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
         <Border x:Name="EditorPanel" Grid.RowSpan="2" Visibility="Collapsed" VerticalAlignment="Top" Margin="4,12,4,0"
-                Padding="14" Background="{DynamicResource SubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                Padding="14" Background="{DynamicResource SubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource CardRadius}">
             <StackPanel>
                 <TextBlock Text="编辑 Markdown 快捷入口" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" />
                 <TextBlock Text="名称" Margin="0,12,0,4" />

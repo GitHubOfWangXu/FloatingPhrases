@@ -39,6 +39,8 @@ internal static class LayoutChecks
         root.Name = ui + "UserControl";
         root.SetAttributeValue("Style", "{DynamicResource {x:Type UserControl}}");
         root.Element(ui + "Window.Resources")!.Name = ui + "UserControl.Resources";
+        root.Element(ui + "UserControl.Resources")!.Element(ui + "ResourceDictionary")!
+            .SetAttributeValue("Source", "/FloatingPhrases;component/Themes/Shadcn.xaml");
         foreach (var name in new[] { "Title", "Icon", "WindowStyle", "ResizeMode", "AllowsTransparency", "Topmost", "ShowInTaskbar" })
             root.Attribute(name)?.Remove();
         root.Attribute(x + "Class")!.Remove();
@@ -52,6 +54,7 @@ internal static class LayoutChecks
         root.Descendants().Single(e => e.Name.LocalName == "ComputerView").Name = ui + "ContentControl";
         var view = (UserControl)XamlReader.Parse(doc.ToString());
         T Find<T>(string name) => (T)view.FindName(name);
+        Find<ComboBox>("ThemeBox").SelectedIndex = 0;
         Find<ItemsControl>("PhraseList").ItemsSource = new[] {
             new Phrase { Title = "进度同步", Group = "工作", Text = "已收到，我会整理进度后回复你。", IsPinned = true },
             new Phrase { Title = "会议确认", Group = "协作", Text = "时间已确认，我会提前准备好相关材料。" },

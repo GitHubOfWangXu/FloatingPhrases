@@ -138,8 +138,14 @@ public sealed class LanTransferServer : IAsyncDisposable
                 else context.Abort();
             }
         });
-        app.MapGet(prefix + "/", () => Results.Content(page, "text/html; charset=utf-8"));
-        app.MapGet(prefix + "/files", () => Results.Json(Files));
+        app.MapGet(prefix + "/", () => Results.Content(
+            page.Replace("<body>", $"<body data-theme=\"{AppThemeManager.Current.ToString().ToLowerInvariant()}\">", StringComparison.Ordinal),
+            "text/html; charset=utf-8"));
+        app.MapGet(prefix + "/files", (HttpContext context) =>
+        {
+            context.Response.Headers["X-FloatingPhrases-Theme"] = AppThemeManager.Current.ToString().ToLowerInvariant();
+            return Results.Json(Files);
+        });
         app.MapGet(prefix + "/download/{id}", (string id, HttpContext context) =>
         {
             string? path;

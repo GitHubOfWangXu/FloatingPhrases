@@ -54,6 +54,7 @@ public partial class MainWindow : Window
 
         _windowBehavior = new WindowBehavior(this);
         _settings = _settingsStore.Load();
+        AppThemeManager.Apply(System.Windows.Application.Current.Resources, _settings.Theme);
         _edgeDock = new EdgeDockController(this, MainPanel, EdgeHandle, () => ApplyWindowBehavior(IsMouseOver));
         _edgeDock.SetEnabled(_settings.Mode == WindowMode.Floating);
         _phrases = new ObservableCollection<Phrase>(_phraseStore.Load());
@@ -88,6 +89,7 @@ public partial class MainWindow : Window
 
         _initializingSettings = true;
         ModeBox.SelectedIndex = (int)_settings.Mode;
+        ThemeBox.SelectedIndex = (int)_settings.Theme;
         OpacitySlider.Value = _settings.IdleOpacity * 100;
         UpdateOpacityLabel();
         _initializingSettings = false;
@@ -929,6 +931,23 @@ public partial class MainWindow : Window
             _idleFadeTimer.Stop();
             _idleFadeTimer.Start();
         }
+    }
+
+    private void ThemeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_initializingSettings || ThemeBox.SelectedIndex < 0) return;
+        _initializingSettings = true;
+        try
+        {
+            AppThemeManager.SaveAndApply(System.Windows.Application.Current.Resources,
+                _settingsStore, _settings, (AppTheme)ThemeBox.SelectedIndex);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ThemeBox.SelectedIndex = (int)_settings.Theme;
+            SetStatus($"主题保存失败：{ex.Message}");
+        }
+        finally { _initializingSettings = false; }
     }
 
     private void SetWindowMode(WindowMode mode)

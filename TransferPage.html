@@ -17,6 +17,14 @@
     .file{display:flex;align-items:center;gap:12px;border-top:1px solid var(--border);padding:14px 0}.file:first-child{border:0}
     .name{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:500}.name small{display:block;color:var(--muted-foreground);font-weight:400}.download{flex-shrink:0;padding:6px 12px;min-height:34px;background:var(--background);border-color:var(--border);color:var(--foreground)}.download:hover{background:var(--muted)}
     .note{font-size:12px}#cancel[hidden]{display:none}@media(max-width:400px){main{padding:24px 16px}section{padding:18px}}
+    body[data-theme="classic"]{--background:#f3f5fb;--foreground:#29344d;--primary:#4462e8;--primary-foreground:#fff;--muted:#edf0fa;--muted-foreground:#65708a;--border:#e0e4ee;--ring:#93a4ff;--destructive:#b93848;font-size:16px}
+    body[data-theme="classic"] main{max-width:560px;padding:28px 18px}
+    body[data-theme="classic"] h1{font-size:26px;letter-spacing:normal}body[data-theme="classic"] h2{font-size:19px;letter-spacing:normal}
+    body[data-theme="classic"] section{background:white;border-radius:16px;padding:20px;margin-top:20px;box-shadow:none}
+    body[data-theme="classic"] button,body[data-theme="classic"] .download{border-radius:9px;padding:11px 16px;font-weight:400}
+    body[data-theme="classic"] button.secondary{background:var(--muted);color:var(--primary);border-color:transparent}
+    body[data-theme="classic"] .download{background:var(--primary);color:var(--primary-foreground);padding:8px 14px}
+    body[data-theme="classic"] progress{height:14px}body[data-theme="classic"] .note{font-size:13px}
   </style>
 </head>
 <body>
@@ -53,6 +61,7 @@
     try {
       const response = await fetch(base + 'files', {cache:'no-store'});
       if (!response.ok) throw new Error();
+      document.body.dataset.theme = response.headers.get('X-FloatingPhrases-Theme') || 'shadcn';
       const files = await response.json();
       const signature = JSON.stringify(files);
       if (signature === listing) return;

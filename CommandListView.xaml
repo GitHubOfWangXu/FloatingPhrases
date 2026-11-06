@@ -19,7 +19,7 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl x:Name="CommandList">
                     <ItemsControl.ItemTemplate><DataTemplate>
-                        <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,9">
+                        <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource CardRadius}" Padding="12" Margin="0,0,0,9">
                             <StackPanel>
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" TextTrimming="CharacterEllipsis"/>
                                 <TextBlock Text="{Binding Text}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>

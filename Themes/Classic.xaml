@@ -1,0 +1,148 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#F8F9FD" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="#253047" />
+    <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#4462E8" />
+    <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SecondaryBrush" Color="#EDF0F7" />
+    <SolidColorBrush x:Key="MutedBrush" Color="#65708A" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#D5DAE7" />
+    <SolidColorBrush x:Key="RingBrush" Color="#AAB7F1" />
+    <SolidColorBrush x:Key="DestructiveBrush" Color="#C24E5B" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#F2A93B" />
+    <SolidColorBrush x:Key="SubtleBrush" Color="#EEF1FA" />
+    <SolidColorBrush x:Key="OverlayBrush" Color="#CC17213B" />
+    <CornerRadius x:Key="PanelRadius">18</CornerRadius>
+    <CornerRadius x:Key="HeaderRadius">18,18,0,0</CornerRadius>
+    <CornerRadius x:Key="FooterRadius">0,0,18,18</CornerRadius>
+    <CornerRadius x:Key="CardRadius">11</CornerRadius>
+    <DropShadowEffect x:Key="PanelShadow" BlurRadius="22" ShadowDepth="4" Opacity="0.22" Color="#17213B" />
+    <Style TargetType="Window">
+        <Setter Property="FontFamily" Value="{DynamicResource {x:Static SystemFonts.MessageFontFamilyKey}}" />
+        <Setter Property="FontSize" Value="{DynamicResource {x:Static SystemFonts.MessageFontSizeKey}}" />
+        <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+        <Setter Property="Background" Value="{StaticResource BackgroundBrush}" />
+    </Style>
+    <Style TargetType="UserControl">
+        <Setter Property="FontFamily" Value="{DynamicResource {x:Static SystemFonts.MessageFontFamilyKey}}" />
+        <Setter Property="FontSize" Value="{DynamicResource {x:Static SystemFonts.MessageFontSizeKey}}" />
+        <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+    </Style>
+
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="#65708A" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style x:Key="ItemAction" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Width" Value="27" />
+            <Setter Property="Height" Value="27" />
+            <Setter Property="Margin" Value="3,0,0,0" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style x:Key="AddButton" TargetType="Button">
+            <Setter Property="Width" Value="74" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Background" Value="#4462E8" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style x:Key="SearchBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="BorderBrush" Value="#D5DAE7" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style x:Key="CardButton" TargetType="Button">
+            <Setter Property="Padding" Value="13,11,72,11" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#E0E4EE" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Card"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{DynamicResource CardRadius}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Card" Property="Background" Value="#F1F4FF" />
+                                <Setter TargetName="Card" Property="BorderBrush" Value="#AAB7F1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl"><Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <UniformGrid Rows="1" IsItemsHost="True"/>
+                <ContentPresenter Grid.Row="1" ContentSource="SelectedContent" Margin="0,4,0,0"/>
+            </Grid></ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#65708A"/><Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+                <Border x:Name="TabPill" Background="{TemplateBinding Background}" CornerRadius="8" Padding="2,10" Margin="2,0">
+                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsSelected" Value="True"><Setter TargetName="TabPill" Property="Background" Value="#4462E8"/><Setter Property="Foreground" Value="White"/></Trigger>
+                    <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsMouseOver" Value="True"/><Condition Property="IsSelected" Value="False"/></MultiTrigger.Conditions><Setter TargetName="TabPill" Property="Background" Value="#E8EDFC"/></MultiTrigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="AddEntryButtonStyle" TargetType="Button" BasedOn="{StaticResource IconButton}">
+        <Style.Triggers><DataTrigger Binding="{Binding IsSelected, ElementName=ComputerTab}" Value="True">
+            <Setter Property="IsEnabled" Value="False" />
+        </DataTrigger></Style.Triggers>
+    </Style>
+    <Style x:Key="DialogButton" TargetType="Button">
+        <Setter Property="Padding" Value="12,7" /><Setter Property="MinHeight" Value="34" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style x:Key="PrimaryButton" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryForegroundBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style x:Key="TransferButton" TargetType="Button">
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="Background" Value="#EDF0FA" /><Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="0" /><Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style x:Key="SystemToolButton" TargetType="Button">
+        <Setter Property="Height" Value="34" /><Setter Property="Margin" Value="3" />
+        <Setter Property="Background" Value="White" /><Setter Property="Foreground" Value="#35405A" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" /><Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style x:Key="StatusCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardBrush}" /><Setter Property="BorderBrush" Value="#E0E4EE" />
+        <Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="{StaticResource CardRadius}" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style TargetType="ProgressBar">
+        <Setter Property="Height" Value="5" /><Setter Property="Margin" Value="0,8,0,0" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" /><Setter Property="Background" Value="#E9EDF7" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+</ResourceDictionary>
