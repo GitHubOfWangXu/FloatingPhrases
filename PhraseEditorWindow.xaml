@@ -48,16 +48,21 @@
                       Foreground="{DynamicResource ForegroundBrush}" />
         </Grid>
 
-        <StackPanel Grid.Row="3">
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <TextBlock Text="内容" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" />
             <TextBox x:Name="ContentBox"
+                     Grid.Row="1"
                      Margin="0,7,0,0"
                      Padding="10"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
                      VerticalScrollBarVisibility="Auto"
                      BorderBrush="{DynamicResource BorderBrush}" />
-        </StackPanel>
+        </Grid>
 
         <StackPanel Grid.Row="4"
                     Margin="0,18,0,0"

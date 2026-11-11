@@ -44,7 +44,7 @@
         <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Padding" Value="8,4" />
         <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -123,7 +123,8 @@
     <ControlTemplate x:Key="InputTemplate" TargetType="Control">
         <Border x:Name="InputBorder" Background="{TemplateBinding Background}" CornerRadius="6"
                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+            <!-- TextBox/PasswordBox already apply Padding to the content host. -->
+            <ScrollViewer x:Name="PART_ContentHost" />
         </Border>
         <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocusWithin" Value="True">
