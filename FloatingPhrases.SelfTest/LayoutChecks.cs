@@ -140,6 +140,7 @@ internal static class LayoutChecks
             view.Measure(new Size(width, 650));
             view.Arrange(new Rect(0, 0, width, 650));
             view.UpdateLayout();
+            ControlLayoutChecks.Check(view, $"main-{width}-{dpi}-{tab}");
             foreach (TabItem header in tabs.Items)
             {
                 var headerBounds = header.TransformToAncestor(view).TransformBounds(new Rect(header.RenderSize));
@@ -239,9 +240,25 @@ internal static class LayoutChecks
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using var file = File.Create(Path.Combine(output, $"ui-{width}-{dpi}-{tab}.png"));
             encoder.Save(file);
+            if (tab == 5)
+            {
+                var documents = (DocumentListView)Find<ContentControl>("DocumentView").Content;
+                var editor = (FrameworkElement)documents.FindName("EditorPanel");
+                editor.Visibility = Visibility.Visible;
+                ((TextBox)documents.FindName("NameBox")).Text = "项目说明";
+                ((TextBox)documents.FindName("PathBox")).Text = @"D:\Projects\Sample\README.md";
+                view.UpdateLayout();
+                ControlLayoutChecks.Check(view, $"document-editor-{width}-{dpi}");
+                bitmap = new RenderTargetBitmap(width * dpi / 96, 650 * dpi / 96, dpi, dpi, PixelFormats.Pbgra32);
+                bitmap.Render(view);
+                encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var editorFile = File.Create(Path.Combine(output, $"document-editor-{width}-{dpi}.png")); encoder.Save(editorFile);
+                editor.Visibility = Visibility.Collapsed;
+            }
         }
+        ControlLayoutChecks.ExportDialogs(sourceRoot, output);
         ProcessMemoryChecks.Export(output);
-        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: six main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; toolbar, main and file tabs, Markdown, transfer and computer bounds; computer management buttons reachable by scrolling; memory details at 560/700 pixels. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
-        Console.WriteLine("UI layout checks passed; 60 images exported.");
+        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: six main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; input viewports and button/checkbox/combo text; inline Markdown editor; eight secondary windows at default/minimum sizes; expanded translation settings; toolbar, main and file tabs, Markdown, transfer and computer bounds; computer management buttons reachable by scrolling; memory details at 560/700 pixels. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
+        Console.WriteLine("UI layout checks passed; main views, inline editor and eight secondary windows exported.");
     }
 }
