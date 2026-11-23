@@ -75,6 +75,7 @@ public sealed class SettingsStore
     {
         Mode = Enum.IsDefined(settings.Mode) ? settings.Mode : WindowMode.Floating,
         Theme = Enum.IsDefined(settings.Theme) ? settings.Theme : AppTheme.Shadcn,
+        ScreenshotHotkey = settings.ScreenshotHotkey.IsValid() ? settings.ScreenshotHotkey : ScreenshotHotkey.Default,
         IdleOpacity = double.IsFinite(settings.IdleOpacity)
             ? Math.Clamp(settings.IdleOpacity, 0.2, 0.9)
             : 0.35

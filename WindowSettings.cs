@@ -13,9 +13,10 @@ public enum AppTheme
     Classic
 }
 
-public sealed class WindowSettings
+public sealed record WindowSettings
 {
     public WindowMode Mode { get; set; } = WindowMode.Floating;
     public double IdleOpacity { get; set; } = 0.35;
     public AppTheme Theme { get; set; } = AppTheme.Shadcn;
+    public ScreenshotHotkey ScreenshotHotkey { get; set; } = ScreenshotHotkey.Default;
 }

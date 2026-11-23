@@ -19,11 +19,11 @@ public partial class MainWindow : Window
     private const int ClickThroughHotkeyId = 0x4651;
     private const int TranslationHotkeyId = 0x4652;
     private const int ScreenshotHotkeyId = 0x4653;
+    private const int AlternateScreenshotHotkeyId = 0x4654;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint ModNoRepeat = 0x4000;
     private const uint VkSpace = 0x20;
-    private const uint VkS = 0x53;
     private const uint VkT = 0x54;
     private const int WmHotkey = 0x0312;
 
@@ -50,6 +50,8 @@ public partial class MainWindow : Window
     private bool _initializingSettings = true;
     private bool _isExiting;
     private bool _isTakingScreenshot;
+    private bool _editingScreenshotHotkey;
+    private int _registeredScreenshotHotkeyId;
 
     public MainWindow()
     {
@@ -157,6 +159,7 @@ public partial class MainWindow : Window
         menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
         menu.Items.Add("新增命令", null, (_, _) => Dispatcher.Invoke(ShowCommandInput));
         menu.Items.Add("翻译剪贴板英文 (Ctrl+T)", null, (_, _) => Dispatcher.Invoke(ShowTranslation));
+        menu.Items.Add("截图快捷键…", null, (_, _) => Dispatcher.Invoke(EditScreenshotHotkey));
         menu.Items.Add(new Forms.ToolStripSeparator());
         var modes = new Forms.ToolStripMenuItem("窗口模式");
         modes.DropDownItems.Add("普通", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Normal)));
@@ -190,8 +193,9 @@ public partial class MainWindow : Window
             helper.Handle, ClickThroughHotkeyId, ModControl | ModAlt, VkT);
         var translationRegistered = RegisterHotKey(
             helper.Handle, TranslationHotkeyId, ModControl | ModNoRepeat, VkT);
-        var screenshotRegistered = RegisterHotKey(
-            helper.Handle, ScreenshotHotkeyId, ModControl | ModAlt | ModNoRepeat, VkS);
+        var screenshotRegistered = RegisterScreenshotHotkey(helper.Handle, ScreenshotHotkeyId, _settings.ScreenshotHotkey);
+        _registeredScreenshotHotkeyId = screenshotRegistered ? ScreenshotHotkeyId : 0;
+        UpdateScreenshotTooltip();
         if (!visibilityRegistered || !clickThroughRegistered || !translationRegistered || !screenshotRegistered)
         {
             StatusText.Text = !screenshotRegistered
@@ -207,6 +211,12 @@ public partial class MainWindow : Window
 
     private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WmHotkey && _editingScreenshotHotkey)
+        {
+            handled = true;
+            return IntPtr.Zero;
+        }
+
         if (msg == WmHotkey && wParam.ToInt32() == VisibilityHotkeyId)
         {
             ToggleVisibility();
@@ -222,7 +232,7 @@ public partial class MainWindow : Window
             ShowTranslation();
             handled = true;
         }
-        else if (msg == WmHotkey && wParam.ToInt32() == ScreenshotHotkeyId)
+        else if (msg == WmHotkey && _registeredScreenshotHotkeyId != 0 && wParam.ToInt32() == _registeredScreenshotHotkeyId)
         {
             TakeScreenshot();
             handled = true;
@@ -606,6 +616,79 @@ public partial class MainWindow : Window
         _translationWindow.Activate();
         _translationWindow.TranslateClipboard();
     }
+
+    private void ScreenshotHotkeySettings_Click(object sender, RoutedEventArgs e) => EditScreenshotHotkey();
+
+    private void EditScreenshotHotkey()
+    {
+        if (_editingScreenshotHotkey || _isTakingScreenshot)
+        {
+            return;
+        }
+
+        _editingScreenshotHotkey = true;
+        try
+        {
+            var editor = new ScreenshotHotkeyWindow(_settings.ScreenshotHotkey, SaveScreenshotHotkey);
+            if (IsVisible && WindowState != WindowState.Minimized)
+            {
+                editor.Owner = this;
+                editor.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            }
+
+            editor.ShowDialog();
+        }
+        finally
+        {
+            _editingScreenshotHotkey = false;
+        }
+    }
+
+    private string? SaveScreenshotHotkey(ScreenshotHotkey shortcut)
+    {
+        if (_registeredScreenshotHotkeyId != 0 && shortcut == _settings.ScreenshotHotkey)
+        {
+            return null;
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        var candidateId = _registeredScreenshotHotkeyId == ScreenshotHotkeyId
+            ? AlternateScreenshotHotkeyId
+            : ScreenshotHotkeyId;
+        // Keep the current shortcut registered until the replacement is saved.
+        if (!RegisterScreenshotHotkey(handle, candidateId, shortcut))
+        {
+            return $"无法使用 {shortcut}，可能已被占用。请选择其他组合。";
+        }
+
+        try
+        {
+            _settingsStore.Save(_settings with { ScreenshotHotkey = shortcut });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            UnregisterHotKey(handle, candidateId);
+            return "无法保存快捷键，原设置已保留。";
+        }
+
+        if (_registeredScreenshotHotkeyId != 0)
+        {
+            UnregisterHotKey(handle, _registeredScreenshotHotkeyId);
+        }
+
+        _registeredScreenshotHotkeyId = candidateId;
+        _settings.ScreenshotHotkey = shortcut;
+        UpdateScreenshotTooltip();
+        return null;
+    }
+
+    private static bool RegisterScreenshotHotkey(IntPtr handle, int id, ScreenshotHotkey shortcut) =>
+        RegisterHotKey(handle, id, (uint)shortcut.Modifiers | ModNoRepeat, (uint)KeyInterop.VirtualKeyFromKey(shortcut.Key));
+
+    private void UpdateScreenshotTooltip() =>
+        ScreenshotButton.ToolTip = _registeredScreenshotHotkeyId == 0
+            ? "截图快捷键不可用，右键可修改"
+            : $"框选截图（{_settings.ScreenshotHotkey}），右键修改快捷键";
 
     private void Screenshot_Click(object sender, RoutedEventArgs e) => TakeScreenshot();
 
@@ -1094,7 +1177,10 @@ public partial class MainWindow : Window
             UnregisterHotKey(handle, VisibilityHotkeyId);
             UnregisterHotKey(handle, ClickThroughHotkeyId);
             UnregisterHotKey(handle, TranslationHotkeyId);
-            UnregisterHotKey(handle, ScreenshotHotkeyId);
+            if (_registeredScreenshotHotkeyId != 0)
+            {
+                UnregisterHotKey(handle, _registeredScreenshotHotkeyId);
+            }
             _source.RemoveHook(WindowProc);
         }
 

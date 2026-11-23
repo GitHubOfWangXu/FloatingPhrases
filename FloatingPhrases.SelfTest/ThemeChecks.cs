@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using FloatingPhrases;
 
 internal static class ThemeChecks
@@ -28,6 +29,16 @@ internal static class ThemeChecks
         var settings = store.Load();
         Check(settings.Theme == AppTheme.Shadcn && settings.Mode == WindowMode.Normal
             && settings.IdleOpacity == 0.61 && File.ReadAllText(path) == legacy, "旧设置应兼容读取，且不改写原文件");
+
+        Check(settings.ScreenshotHotkey == ScreenshotHotkey.Default, "旧设置应使用默认截图快捷键");
+        var invalidHotkey = new ScreenshotHotkey(ModifierKeys.None, Key.S);
+        store.Save(settings with { ScreenshotHotkey = invalidHotkey });
+        Check(store.Load().ScreenshotHotkey == ScreenshotHotkey.Default, "普通字母键不能单独注册为全局截图快捷键");
+        var customHotkey = new ScreenshotHotkey(ModifierKeys.Control | ModifierKeys.Shift, Key.D3);
+        Check(customHotkey.IsValid() && customHotkey.ToString() == "Ctrl+Shift+3", "数字组合键应可保存并正确显示");
+        settings.ScreenshotHotkey = customHotkey;
+        store.Save(settings);
+        Check(store.Load().ScreenshotHotkey == customHotkey, "重启读回应保留用户选择的截图快捷键");
 
         var resources = new ResourceDictionary();
         var body = new TextBlock { Text = "普通正文和 English 123" };
@@ -65,8 +76,9 @@ internal static class ThemeChecks
                 && view.FontSize == SystemFonts.MessageFontSize, "两套主题应沿用系统字体和字号");
             Check(store.Load().Theme == theme && settings.Theme == theme && AppThemeManager.Current == theme,
                 "当前主题和保存的选择应一致");
-            Check(store.Load().Mode == WindowMode.Normal && store.Load().IdleOpacity == 0.61,
-                "保存主题不能改变窗口模式和透明度");
+            Check(store.Load().Mode == WindowMode.Normal && store.Load().IdleOpacity == 0.61
+                && store.Load().ScreenshotHotkey == customHotkey,
+                "保存主题不能改变窗口模式、透明度和截图快捷键");
             var color = ((System.Windows.Media.SolidColorBrush)resources["PrimaryBrush"]).Color;
             Check(color.ToString() == (theme == AppTheme.Classic ? "#FF4462E8" : "#FF18181B"), "现有控件应切换到对应主题资源");
             computerTab.IsSelected = true;
