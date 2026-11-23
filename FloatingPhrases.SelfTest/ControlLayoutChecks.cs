@@ -54,7 +54,7 @@ internal static class ControlLayoutChecks
         XNamespace ui = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         foreach (var name in new[] { "AppEditorWindow", "FolderEditorWindow", "PhraseEditorWindow", "CommandEditorWindow",
-                     "TranslationWindow", "ScreenshotEditorWindow", "ProcessMemoryWindow", "ScreenshotWindow" })
+                     "TranslationWindow", "ScreenshotEditorWindow", "ProcessMemoryWindow", "ScreenshotWindow", "SettingsWindow" })
         {
             var doc = XDocument.Load(Path.Combine(sourceRoot, name + ".xaml"));
             var root = doc.Root!;
@@ -64,6 +64,8 @@ internal static class ControlLayoutChecks
             var minHeight = (double?)root.Attribute("MinHeight") ?? height;
             root.Name = ui + "UserControl";
             root.SetAttributeValue(XNamespace.Xmlns + "local", "clr-namespace:FloatingPhrases;assembly=FloatingPhrases");
+            foreach (var picker in root.Descendants(XName.Get("HotkeyPicker", "clr-namespace:FloatingPhrases")).ToArray())
+                picker.Name = XName.Get("HotkeyPicker", "clr-namespace:FloatingPhrases;assembly=FloatingPhrases");
             root.SetAttributeValue("Style", "{DynamicResource {x:Type UserControl}}");
             foreach (var attr in root.Attributes().Where(a => !a.IsNamespaceDeclaration && a.Name != "Style" && a.Name != "Background").ToArray()) attr.Remove();
             foreach (var attr in root.DescendantsAndSelf().Attributes().Where(a => a.Value.EndsWith("_Click")
@@ -73,7 +75,16 @@ internal static class ControlLayoutChecks
                 new XAttribute("Source", "/FloatingPhrases;component/Themes/Shadcn.xaml"))));
             var view = (UserControl)XamlReader.Parse(doc.ToString());
             if (view.FindName("CategoryBox") is ComboBox category) { category.Items.Add("自定义"); category.SelectedIndex = 0; }
-            foreach (var size in new[] { new Size(width, height - 32), new Size(minWidth, minHeight - 32) }.Distinct())
+            if (name == "SettingsWindow")
+            {
+                var defaults = new FloatingPhrases.WindowSettings();
+                ((FloatingPhrases.HotkeyPicker)view.FindName("VisibilityPicker")).Value = defaults.VisibilityHotkey;
+                ((FloatingPhrases.HotkeyPicker)view.FindName("ClickThroughPicker")).Value = defaults.ClickThroughHotkey;
+                ((FloatingPhrases.HotkeyPicker)view.FindName("ScreenshotPicker")).Value = defaults.ScreenshotHotkey;
+                ((FloatingPhrases.HotkeyPicker)view.FindName("TranslationPicker")).Value = defaults.TranslationHotkey;
+            }
+            var previewHeight = name == "SettingsWindow" ? height : minHeight;
+            foreach (var size in new[] { new Size(width, height - 32), new Size(minWidth, previewHeight - 32) }.Distinct())
             foreach (var expanded in name == "TranslationWindow" ? new[] { false, true } : new[] { false })
             {
                 view.Width = size.Width;
@@ -81,7 +92,8 @@ internal static class ControlLayoutChecks
                 view.Measure(size); view.Arrange(new Rect(size)); view.UpdateLayout();
                 foreach (var input in Descendants<TextBox>(view)) input.Text = "示例 Ag中文 123";
                 foreach (var input in Descendants<PasswordBox>(view)) input.Password = "sample-key";
-                foreach (var combo in Descendants<ComboBox>(view).Where(c => c.Items.Count > 0)) combo.SelectedIndex = 0;
+                foreach (var combo in Descendants<ComboBox>(view).Where(c => c.Items.Count > 0
+                             && (name != "SettingsWindow" || c.SelectedIndex < 0))) combo.SelectedIndex = 0;
                 foreach (var expander in Descendants<Expander>(view)) expander.IsExpanded = expanded;
                 view.UpdateLayout();
                 var scenario = $"{name}-{size.Width}-{size.Height}-{expanded}";

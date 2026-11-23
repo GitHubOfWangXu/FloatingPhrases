@@ -37,47 +37,29 @@
             SnapsToDevicePixels="True">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="106" />
+                <RowDefinition Height="64" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="42" />
             </Grid.RowDefinitions>
 
             <Border Background="{DynamicResource SubtleBrush}" CornerRadius="{DynamicResource HeaderRadius}">
-            <Grid MouseLeftButtonDown="Header_MouseLeftButtonDown">
-                <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="50"/></Grid.RowDefinitions>
-                <Grid Margin="18,8,12,0">
+                <Grid Margin="14,0,12,0" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center">
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,6,0">
                         <TextBlock Text="Floating Phrases" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="短语 · 文件 · 软件 · 待办 · 命令 · 电脑" FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="0,3,0,0" />
+                        <TextBlock Text="短语 · 文件 · 软件 · 待办 · 命令 · 电脑" FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ComboBox x:Name="ThemeBox" Width="80" Height="30" Margin="0,0,8,0"
-                                  AutomationProperties.Name="界面主题" SelectionChanged="ThemeBox_SelectionChanged">
-                            <ComboBoxItem Content="shadcn" /><ComboBoxItem Content="经典" />
-                        </ComboBox>
+                        <Button x:Name="ScreenshotButton" Content="截图" Width="40"
+                                Style="{DynamicResource IconButton}" FontSize="12" Click="Screenshot_Click"/>
+                        <Button x:Name="TranslationButton" Content="翻译" Width="40"
+                                Style="{DynamicResource IconButton}" FontSize="12" Click="Translation_Click"/>
+                        <Button x:Name="SettingsButton" Content="设置" Width="40"
+                                Style="{DynamicResource IconButton}" FontSize="12" Click="Settings_Click"/>
                         <Button x:Name="AddEntryButton" Content="＋" FontSize="20" ToolTip="新增当前类型" Click="Add_Click" Style="{DynamicResource AddEntryButtonStyle}" />
                         <Button Content="—" Style="{DynamicResource IconButton}" FontSize="17" ToolTip="隐藏到托盘" Click="Hide_Click" />
                     </StackPanel>
                 </Grid>
-                <Grid Grid.Row="1" Margin="18,0,16,0" VerticalAlignment="Center">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="82"/><ColumnDefinition Width="*"/><ColumnDefinition Width="38"/><ColumnDefinition Width="48"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
-                    <ComboBox x:Name="ModeBox" Height="30" ToolTip="窗口模式" VerticalContentAlignment="Center" SelectionChanged="ModeBox_SelectionChanged">
-                        <ComboBoxItem Content="普通"/><ComboBoxItem Content="悬浮"/><ComboBoxItem Content="穿透"/>
-                    </ComboBox>
-                    <Slider x:Name="OpacitySlider" Grid.Column="1" Height="24" Margin="14,0,8,0" VerticalAlignment="Center" Minimum="20" Maximum="90" TickFrequency="5" ToolTip="闲置透明度" ValueChanged="OpacitySlider_ValueChanged" />
-                    <TextBlock x:Name="OpacityValueText" Grid.Column="2" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
-                    <Button x:Name="ScreenshotButton" Grid.Column="3" Content="截图" Width="44"
-                            Style="{DynamicResource IconButton}" FontSize="12" Click="Screenshot_Click">
-                        <Button.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="截图快捷键…" Click="ScreenshotHotkeySettings_Click" />
-                            </ContextMenu>
-                        </Button.ContextMenu>
-                    </Button>
-                    <Button Grid.Column="4" Content="翻译" Width="44" Style="{DynamicResource IconButton}" FontSize="12" ToolTip="翻译已复制的英文（Ctrl+T）" Click="Translation_Click"/>
-                </Grid>
-            </Grid>
             </Border>
 
             <TabControl x:Name="MainTabs" Grid.Row="1" Margin="12,8,12,0">
@@ -362,7 +344,6 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="StatusText"
-                               Text="Ctrl+Alt+Space 显隐 · Ctrl+Alt+T 穿透"
                                Foreground="{DynamicResource MutedBrush}"
                                FontSize="11"
                                TextTrimming="CharacterEllipsis"

@@ -54,7 +54,6 @@ internal static class LayoutChecks
         root.Descendants().Single(e => e.Name.LocalName == "ComputerView").Name = ui + "ContentControl";
         var view = (UserControl)XamlReader.Parse(doc.ToString());
         T Find<T>(string name) => (T)view.FindName(name);
-        Find<ComboBox>("ThemeBox").SelectedIndex = 0;
         Find<ItemsControl>("PhraseList").ItemsSource = new[] {
             new Phrase { Title = "进度同步", Group = "工作", Text = "已收到，我会整理进度后回复你。", IsPinned = true },
             new Phrase { Title = "会议确认", Group = "协作", Text = "时间已确认，我会提前准备好相关材料。" },
@@ -73,11 +72,7 @@ internal static class LayoutChecks
         };
         Find<ComboBox>("AppCategoryFilter").ItemsSource = new[] { "全部分类" };
         Find<ComboBox>("AppCategoryFilter").SelectedIndex = 0;
-        Find<ComboBox>("ModeBox").SelectedIndex = 1;
-        Find<Slider>("OpacitySlider").Value = 70;
-        Find<TextBlock>("OpacityValueText").Text = "70%";
         Find<TextBlock>("MemoryText").Text = "内存 --";
-        Find<TextBlock>("StatusText").Text = "Ctrl+Alt+Space 显隐 · Ctrl+Alt+T 穿透";
         var todoPath = Path.Combine(output, "sample-todos.json");
         var store = new TodoStore(todoPath);
         store.Save(new[] {
@@ -176,7 +171,7 @@ internal static class LayoutChecks
                 if (fileTabs.SelectedIndex != selectedIndex)
                     throw new InvalidOperationException("Returning to files must retain the selected file tab");
             }
-            foreach (var name in new[] { "ModeBox", "OpacitySlider", "OpacityValueText" })
+            foreach (var name in new[] { "SettingsButton", "ScreenshotButton", "TranslationButton" })
             {
                 var element = Find<FrameworkElement>(name);
                 var bounds = element.TransformToAncestor(view).TransformBounds(new Rect(element.RenderSize));
@@ -258,7 +253,7 @@ internal static class LayoutChecks
         }
         ControlLayoutChecks.ExportDialogs(sourceRoot, output);
         ProcessMemoryChecks.Export(output);
-        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: six main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; input viewports and button/checkbox/combo text; inline Markdown editor; eight secondary windows at default/minimum sizes; expanded translation settings; toolbar, main and file tabs, Markdown, transfer and computer bounds; computer management buttons reachable by scrolling; memory details at 560/700 pixels. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
-        Console.WriteLine("UI layout checks passed; main views, inline editor and eight secondary windows exported.");
+        File.WriteAllText(Path.Combine(output, "layout-check.txt"), "PASS: six main tabs and three file tabs; automation selection and selection retained on return; 370/430 logical pixels; 96/144/192 DPI rendering; input viewports and button/checkbox/combo text; inline Markdown editor; nine secondary windows at default/minimum sizes; expanded translation settings; toolbar, main and file tabs, Markdown, transfer and computer bounds; computer management buttons reachable by scrolling; memory details at 560/700 pixels. Generic sample data. No desktop input. Physical mouse clicks and other code-behind actions not checked here.");
+        Console.WriteLine("UI layout checks passed; main views, inline editor and nine secondary windows exported.");
     }
 }
