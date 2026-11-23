@@ -7,7 +7,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -19,9 +18,12 @@ public partial class MainWindow : Window
     private const int VisibilityHotkeyId = 0x4650;
     private const int ClickThroughHotkeyId = 0x4651;
     private const int TranslationHotkeyId = 0x4652;
+    private const int ScreenshotHotkeyId = 0x4653;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
+    private const uint ModNoRepeat = 0x4000;
     private const uint VkSpace = 0x20;
+    private const uint VkS = 0x53;
     private const uint VkT = 0x54;
     private const int WmHotkey = 0x0312;
 
@@ -47,6 +49,7 @@ public partial class MainWindow : Window
     private System.Windows.Point _dragStart;
     private bool _initializingSettings = true;
     private bool _isExiting;
+    private bool _isTakingScreenshot;
 
     public MainWindow()
     {
@@ -61,7 +64,7 @@ public partial class MainWindow : Window
         _folders = new ObservableCollection<FolderShortcut>(_folderStore.Load());
         _apps = new ObservableCollection<AppShortcut>(_appStore.Load());
         AppCategoryFilter.ItemsSource = new[] { "全部分类" }.Concat(AppCategories.All).ToList();
-        AppCategoryFilter.SelectedIndex = 0;
+        AppCategoryFilter.SelectedItem = AppCategories.Custom;
         ApplyPhraseFilter();
         ApplyFolderFilter();
         ApplyAppFilter();
@@ -186,10 +189,16 @@ public partial class MainWindow : Window
         var clickThroughRegistered = RegisterHotKey(
             helper.Handle, ClickThroughHotkeyId, ModControl | ModAlt, VkT);
         var translationRegistered = RegisterHotKey(
-            helper.Handle, TranslationHotkeyId, ModControl | 0x4000, VkT);
-        if (!visibilityRegistered || !clickThroughRegistered || !translationRegistered)
+            helper.Handle, TranslationHotkeyId, ModControl | ModNoRepeat, VkT);
+        var screenshotRegistered = RegisterHotKey(
+            helper.Handle, ScreenshotHotkeyId, ModControl | ModAlt | ModNoRepeat, VkS);
+        if (!visibilityRegistered || !clickThroughRegistered || !translationRegistered || !screenshotRegistered)
         {
-            StatusText.Text = !translationRegistered ? "翻译快捷键被占用，请使用标题栏或托盘的翻译入口" : "部分全局快捷键已被其他程序占用";
+            StatusText.Text = !screenshotRegistered
+                ? "截图快捷键被占用，请使用标题栏的截图按钮"
+                : !translationRegistered
+                    ? "翻译快捷键被占用，请使用标题栏或托盘的翻译入口"
+                    : "部分全局快捷键已被其他程序占用";
             _statusTimer.Stop();
         }
 
@@ -211,6 +220,11 @@ public partial class MainWindow : Window
         else if (msg == WmHotkey && wParam.ToInt32() == TranslationHotkeyId)
         {
             ShowTranslation();
+            handled = true;
+        }
+        else if (msg == WmHotkey && wParam.ToInt32() == ScreenshotHotkeyId)
+        {
+            TakeScreenshot();
             handled = true;
         }
 
@@ -593,20 +607,28 @@ public partial class MainWindow : Window
         _translationWindow.TranslateClipboard();
     }
 
-    private async void Screenshot_Click(object sender, RoutedEventArgs e)
+    private void Screenshot_Click(object sender, RoutedEventArgs e) => TakeScreenshot();
+
+    private async void TakeScreenshot()
     {
+        if (_isTakingScreenshot)
+        {
+            return;
+        }
+
+        var wasVisible = IsVisible;
+        var wasActive = IsActive;
         var screenBounds = Forms.Screen.FromPoint(Forms.Cursor.Position).Bounds;
-        BitmapSource? screenshot = null;
         string? resultStatus = null;
         Exception? failure = null;
 
-        _idleFadeTimer.Stop();
-        Hide();
-
+        _isTakingScreenshot = true;
         try
         {
+            _idleFadeTimer.Stop();
+            Hide();
             await Task.Delay(180);
-            screenshot = ScreenshotWindow.CaptureScreen(screenBounds);
+            var screenshot = ScreenshotWindow.CaptureScreen(screenBounds);
             var selector = new ScreenshotWindow(screenshot, screenBounds);
 
             if (selector.ShowDialog() == true && selector.SelectedImage is not null)
@@ -627,11 +649,17 @@ public partial class MainWindow : Window
         }
         finally
         {
-            screenshot = null;
-            Show();
-            WindowState = WindowState.Normal;
-            Activate();
-            ApplyWindowBehavior(IsMouseOver);
+            _isTakingScreenshot = false;
+            if (wasVisible)
+            {
+                Show();
+                if (wasActive)
+                {
+                    Activate();
+                }
+
+                ApplyWindowBehavior(IsMouseOver);
+            }
         }
 
         if (failure is not null)
@@ -1066,6 +1094,7 @@ public partial class MainWindow : Window
             UnregisterHotKey(handle, VisibilityHotkeyId);
             UnregisterHotKey(handle, ClickThroughHotkeyId);
             UnregisterHotKey(handle, TranslationHotkeyId);
+            UnregisterHotKey(handle, ScreenshotHotkeyId);
             _source.RemoveHook(WindowProc);
         }
 
