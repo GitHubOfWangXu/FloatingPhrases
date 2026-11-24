@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using FloatingPhrases;
 
 internal static class ThemeChecks
@@ -28,6 +29,25 @@ internal static class ThemeChecks
         var settings = store.Load();
         Check(settings.Theme == AppTheme.Shadcn && settings.Mode == WindowMode.Normal
             && settings.IdleOpacity == 0.61 && File.ReadAllText(path) == legacy, "旧设置应兼容读取，且不改写原文件");
+
+        var defaults = new WindowSettings();
+        Check(settings == (defaults with { Mode = WindowMode.Normal, IdleOpacity = 0.61 }),
+            "旧设置应包含四个默认快捷键");
+        const string screenshotOnly = """{"mode":"normal","idleOpacity":0.61,"screenshotHotkey":{"modifiers":"control, shift","key":"d3"}}""";
+        File.WriteAllText(path, screenshotOnly);
+        var customHotkey = new Hotkey(ModifierKeys.Control | ModifierKeys.Shift, Key.D3);
+        settings = store.Load();
+        Check(settings.ScreenshotHotkey == customHotkey && customHotkey.ToString() == "Ctrl+Shift+3"
+            && settings.TranslationHotkey == defaults.TranslationHotkey && File.ReadAllText(path) == screenshotOnly,
+            "只有截图快捷键的旧文件应兼容读取，且不改写原文件");
+        var invalidHotkey = new Hotkey(ModifierKeys.None, Key.S);
+        store.Save(settings with { ScreenshotHotkey = invalidHotkey });
+        Check(store.Load().ScreenshotHotkey == defaults.ScreenshotHotkey, "普通字母键不能单独注册为全局截图快捷键");
+        settings.VisibilityHotkey = new Hotkey(ModifierKeys.Alt, Key.F8);
+        settings.ClickThroughHotkey = new Hotkey(ModifierKeys.Control | ModifierKeys.Shift, Key.F9);
+        settings.TranslationHotkey = default;
+        store.Save(settings);
+        Check(store.Load() == settings, "重启读回应保留自定义与已关闭的快捷键");
 
         var resources = new ResourceDictionary();
         var body = new TextBlock { Text = "普通正文和 English 123" };
@@ -65,8 +85,7 @@ internal static class ThemeChecks
                 && view.FontSize == SystemFonts.MessageFontSize, "两套主题应沿用系统字体和字号");
             Check(store.Load().Theme == theme && settings.Theme == theme && AppThemeManager.Current == theme,
                 "当前主题和保存的选择应一致");
-            Check(store.Load().Mode == WindowMode.Normal && store.Load().IdleOpacity == 0.61,
-                "保存主题不能改变窗口模式和透明度");
+            Check(store.Load() == settings, "保存主题不能改变窗口模式、透明度和各功能快捷键");
             var color = ((System.Windows.Media.SolidColorBrush)resources["PrimaryBrush"]).Color;
             Check(color.ToString() == (theme == AppTheme.Classic ? "#FF4462E8" : "#FF18181B"), "现有控件应切换到对应主题资源");
             computerTab.IsSelected = true;

@@ -71,12 +71,20 @@ public sealed class SettingsStore
         File.Move(tempPath, _filePath, true);
     }
 
-    private static WindowSettings Normalize(WindowSettings settings) => new()
+    private static WindowSettings Normalize(WindowSettings settings)
     {
-        Mode = Enum.IsDefined(settings.Mode) ? settings.Mode : WindowMode.Floating,
-        Theme = Enum.IsDefined(settings.Theme) ? settings.Theme : AppTheme.Shadcn,
-        IdleOpacity = double.IsFinite(settings.IdleOpacity)
-            ? Math.Clamp(settings.IdleOpacity, 0.2, 0.9)
-            : 0.35
-    };
+        var defaults = new WindowSettings();
+        return settings with
+        {
+            Mode = Enum.IsDefined(settings.Mode) ? settings.Mode : defaults.Mode,
+            Theme = Enum.IsDefined(settings.Theme) ? settings.Theme : defaults.Theme,
+            IdleOpacity = double.IsFinite(settings.IdleOpacity)
+                ? Math.Clamp(settings.IdleOpacity, 0.2, 0.9)
+                : defaults.IdleOpacity,
+            VisibilityHotkey = settings.VisibilityHotkey.IsValid() ? settings.VisibilityHotkey : defaults.VisibilityHotkey,
+            ClickThroughHotkey = settings.ClickThroughHotkey.IsValid() ? settings.ClickThroughHotkey : defaults.ClickThroughHotkey,
+            ScreenshotHotkey = settings.ScreenshotHotkey.IsValid() ? settings.ScreenshotHotkey : defaults.ScreenshotHotkey,
+            TranslationHotkey = settings.TranslationHotkey.IsValid() ? settings.TranslationHotkey : defaults.TranslationHotkey
+        };
+    }
 }

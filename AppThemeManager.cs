@@ -17,7 +17,7 @@ public static class AppThemeManager
     public static void SaveAndApply(ResourceDictionary resources, SettingsStore store, WindowSettings settings, AppTheme theme)
     {
         var dictionary = Load(theme);
-        store.Save(new WindowSettings { Mode = settings.Mode, IdleOpacity = settings.IdleOpacity, Theme = theme });
+        store.Save(settings with { Theme = theme });
         Replace(resources, dictionary, theme);
         settings.Theme = theme;
     }

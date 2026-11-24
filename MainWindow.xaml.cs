@@ -7,7 +7,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -15,14 +14,8 @@ namespace FloatingPhrases;
 
 public partial class MainWindow : Window
 {
-    private const string DefaultStatus = "Ctrl+Alt+Space 显隐 · Ctrl+Alt+T 穿透";
-    private const int VisibilityHotkeyId = 0x4650;
-    private const int ClickThroughHotkeyId = 0x4651;
-    private const int TranslationHotkeyId = 0x4652;
-    private const uint ModAlt = 0x0001;
-    private const uint ModControl = 0x0002;
-    private const uint VkSpace = 0x20;
-    private const uint VkT = 0x54;
+    private const int FirstHotkeyId = 0x4650;
+    private const uint ModNoRepeat = 0x4000;
     private const int WmHotkey = 0x0312;
 
     private readonly ObservableCollection<Phrase> _phrases;
@@ -34,7 +27,8 @@ public partial class MainWindow : Window
     private readonly SettingsStore _settingsStore = new();
     private readonly WindowBehavior _windowBehavior;
     private readonly EdgeDockController _edgeDock;
-    private readonly WindowSettings _settings;
+    private WindowSettings _settings;
+    private Dictionary<Hotkey, (int Id, HotkeyAction Action)> _registeredHotkeys = new();
     private readonly Forms.NotifyIcon _trayIcon;
     private readonly System.Drawing.Icon _trayImage;
     private readonly DispatcherTimer _statusTimer;
@@ -45,8 +39,9 @@ public partial class MainWindow : Window
     private TranslationWindow? _translationWindow;
     private object? _dragCandidate;
     private System.Windows.Point _dragStart;
-    private bool _initializingSettings = true;
     private bool _isExiting;
+    private bool _isTakingScreenshot;
+    private bool _editingSettings;
 
     public MainWindow()
     {
@@ -61,7 +56,7 @@ public partial class MainWindow : Window
         _folders = new ObservableCollection<FolderShortcut>(_folderStore.Load());
         _apps = new ObservableCollection<AppShortcut>(_appStore.Load());
         AppCategoryFilter.ItemsSource = new[] { "全部分类" }.Concat(AppCategories.All).ToList();
-        AppCategoryFilter.SelectedIndex = 0;
+        AppCategoryFilter.SelectedItem = AppCategories.Custom;
         ApplyPhraseFilter();
         ApplyFolderFilter();
         ApplyAppFilter();
@@ -70,7 +65,7 @@ public partial class MainWindow : Window
         _statusTimer.Tick += (_, _) =>
         {
             _statusTimer.Stop();
-            StatusText.Text = DefaultStatus;
+            StatusText.Text = "";
         };
 
         _idleFadeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(650) };
@@ -86,13 +81,6 @@ public partial class MainWindow : Window
             _settingsSaveTimer.Stop();
             SaveSettings();
         };
-
-        _initializingSettings = true;
-        ModeBox.SelectedIndex = (int)_settings.Mode;
-        ThemeBox.SelectedIndex = (int)_settings.Theme;
-        OpacitySlider.Value = _settings.IdleOpacity * 100;
-        UpdateOpacityLabel();
-        _initializingSettings = false;
 
         using (var iconStream = System.Windows.Application.GetResourceStream(
             new Uri("pack://application:,,,/FloatingPhrases;component/Assets/app.ico")).Stream)
@@ -153,14 +141,10 @@ public partial class MainWindow : Window
         menu.Items.Add("新增软件", null, (_, _) => Dispatcher.Invoke(AddApp));
         menu.Items.Add("新增待办", null, (_, _) => Dispatcher.Invoke(ShowTodoInput));
         menu.Items.Add("新增命令", null, (_, _) => Dispatcher.Invoke(ShowCommandInput));
-        menu.Items.Add("翻译剪贴板英文 (Ctrl+T)", null, (_, _) => Dispatcher.Invoke(ShowTranslation));
+        menu.Items.Add("翻译剪贴板英文", null, (_, _) => Dispatcher.Invoke(ShowTranslation));
+        menu.Items.Add("设置…", null, (_, _) => Dispatcher.Invoke(EditSettings));
         menu.Items.Add(new Forms.ToolStripSeparator());
-        var modes = new Forms.ToolStripMenuItem("窗口模式");
-        modes.DropDownItems.Add("普通", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Normal)));
-        modes.DropDownItems.Add("悬浮", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.Floating)));
-        modes.DropDownItems.Add("穿透", null, (_, _) => Dispatcher.Invoke(() => SetWindowMode(WindowMode.ClickThrough)));
-        menu.Items.Add(modes);
-        menu.Items.Add("恢复可操作 (Ctrl+Alt+T)", null, (_, _) => Dispatcher.Invoke(RestoreInteractiveMode));
+        menu.Items.Add("恢复可操作", null, (_, _) => Dispatcher.Invoke(RestoreInteractiveMode));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => Dispatcher.Invoke(ExitApplication));
         return menu;
@@ -181,37 +165,44 @@ public partial class MainWindow : Window
         _source.AddHook(WindowProc);
         _windowBehavior.Attach(helper.Handle);
 
-        var visibilityRegistered = RegisterHotKey(
-            helper.Handle, VisibilityHotkeyId, ModControl | ModAlt, VkSpace);
-        var clickThroughRegistered = RegisterHotKey(
-            helper.Handle, ClickThroughHotkeyId, ModControl | ModAlt, VkT);
-        var translationRegistered = RegisterHotKey(
-            helper.Handle, TranslationHotkeyId, ModControl | 0x4000, VkT);
-        if (!visibilityRegistered || !clickThroughRegistered || !translationRegistered)
+        foreach (var (action, _, key) in _settings.Shortcuts())
         {
-            StatusText.Text = !translationRegistered ? "翻译快捷键被占用，请使用标题栏或托盘的翻译入口" : "部分全局快捷键已被其他程序占用";
-            _statusTimer.Stop();
+            if (key.IsEnabled() && !_registeredHotkeys.ContainsKey(key))
+            {
+                TryRegisterShortcut(helper.Handle, key, action, _registeredHotkeys);
+            }
         }
 
+        RefreshShortcutTooltips();
+        StatusText.Text = UnavailableShortcuts();
         ApplyWindowBehavior(IsMouseOver);
     }
 
     private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WmHotkey && wParam.ToInt32() == VisibilityHotkeyId)
+        if (msg != WmHotkey)
         {
-            ToggleVisibility();
-            handled = true;
+            return IntPtr.Zero;
         }
-        else if (msg == WmHotkey && wParam.ToInt32() == ClickThroughHotkeyId)
+
+        if (_editingSettings)
         {
-            ToggleClickThroughMode();
             handled = true;
+            return IntPtr.Zero;
         }
-        else if (msg == WmHotkey && wParam.ToInt32() == TranslationHotkeyId)
+
+        var chord = unchecked((uint)lParam.ToInt64());
+        var key = new Hotkey((ModifierKeys)(chord & 0xF), KeyInterop.KeyFromVirtualKey((int)(chord >> 16)));
+        if (_registeredHotkeys.TryGetValue(key, out var registration) && registration.Id == wParam.ToInt32())
         {
-            ShowTranslation();
             handled = true;
+            switch (registration.Action)
+            {
+                case HotkeyAction.ToggleVisibility: ToggleVisibility(); break;
+                case HotkeyAction.ToggleClickThrough: ToggleClickThroughMode(); break;
+                case HotkeyAction.Screenshot: TakeScreenshot(); break;
+                case HotkeyAction.Translate: ShowTranslation(); break;
+            }
         }
 
         return IntPtr.Zero;
@@ -593,20 +584,171 @@ public partial class MainWindow : Window
         _translationWindow.TranslateClipboard();
     }
 
-    private async void Screenshot_Click(object sender, RoutedEventArgs e)
+    private void Settings_Click(object sender, RoutedEventArgs e) => EditSettings();
+
+    private void EditSettings()
     {
+        if (_editingSettings || _isTakingScreenshot)
+        {
+            return;
+        }
+
+        _editingSettings = true;
+        try
+        {
+            var editor = new SettingsWindow(_settings, SaveWindowSettings, UnavailableShortcuts());
+            if (IsVisible && WindowState != WindowState.Minimized)
+            {
+                editor.Owner = this;
+                editor.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            }
+
+            editor.ShowDialog();
+        }
+        finally
+        {
+            _editingSettings = false;
+        }
+    }
+
+    private string? SaveWindowSettings(WindowSettings settings)
+    {
+        var shortcuts = settings.Shortcuts();
+        foreach (var (_, label, key) in shortcuts)
+        {
+            if (!key.IsValid())
+            {
+                return $"「{label}」请选择 F1–F11，或为字母、数字和空格加上 Ctrl 或 Alt。";
+            }
+        }
+
+        var duplicates = shortcuts.Where(shortcut => shortcut.Key.IsEnabled()).GroupBy(shortcut => shortcut.Key)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicates is not null)
+        {
+            return $"{duplicates.Key} 已分配给多个功能，请分别设置。";
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        var currentKeys = _settings.Shortcuts().ToDictionary(shortcut => shortcut.Action, shortcut => shortcut.Key);
+        var next = new Dictionary<Hotkey, (int Id, HotkeyAction Action)>();
+        var saved = false;
+        try
+        {
+            // Keep existing registrations while trying new combinations and saving the settings.
+            foreach (var (action, label, key) in shortcuts.Where(shortcut => shortcut.Key.IsEnabled()))
+            {
+                if (_registeredHotkeys.TryGetValue(key, out var existing))
+                {
+                    next.Add(key, (existing.Id, action));
+                }
+                else if (!TryRegisterShortcut(handle, key, action, next) && key != currentKeys[action])
+                {
+                    return $"「{label}」无法使用 {key}，请选择其他组合。";
+                }
+            }
+
+            if (settings.Theme == _settings.Theme)
+            {
+                _settingsStore.Save(settings);
+            }
+            else
+            {
+                AppThemeManager.SaveAndApply(System.Windows.Application.Current.Resources, _settingsStore, settings, settings.Theme);
+            }
+
+            saved = true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return "无法保存设置，原设置已保留。";
+        }
+        finally
+        {
+            if (!saved)
+            {
+                ReleaseRemovedShortcuts(handle, next, _registeredHotkeys);
+            }
+        }
+
+        ReleaseRemovedShortcuts(handle, _registeredHotkeys, next);
+        _registeredHotkeys = next;
+        _settings = settings;
+        _settingsSaveTimer.Stop();
+        RefreshShortcutTooltips();
+        UpdateWindowMode();
+        var unavailable = UnavailableShortcuts();
+        SetStatus(unavailable.Length == 0 ? "设置已保存" : unavailable);
+        return null;
+    }
+
+    private bool TryRegisterShortcut(IntPtr handle, Hotkey key, HotkeyAction action,
+        Dictionary<Hotkey, (int Id, HotkeyAction Action)> registrations)
+    {
+        var used = _registeredHotkeys.Values.Concat(registrations.Values).Select(registration => registration.Id);
+        var id = Enumerable.Range(FirstHotkeyId, 8).Except(used).First();
+        if (!RegisterHotKey(handle, id, (uint)key.Modifiers | ModNoRepeat, (uint)KeyInterop.VirtualKeyFromKey(key.Key)))
+        {
+            return false;
+        }
+
+        registrations.Add(key, (id, action));
+        return true;
+    }
+
+    private static void ReleaseRemovedShortcuts(IntPtr handle,
+        Dictionary<Hotkey, (int Id, HotkeyAction Action)> registrations,
+        Dictionary<Hotkey, (int Id, HotkeyAction Action)> retained)
+    {
+        foreach (var (key, registration) in registrations)
+        {
+            if (!retained.ContainsKey(key))
+            {
+                UnregisterHotKey(handle, registration.Id);
+            }
+        }
+    }
+
+    private bool IsRegistered(Hotkey key, HotkeyAction action) =>
+        _registeredHotkeys.TryGetValue(key, out var registration) && registration.Action == action;
+
+    private string UnavailableShortcuts()
+    {
+        var unavailable = _settings.Shortcuts().Where(shortcut =>
+            shortcut.Key.IsEnabled() && !IsRegistered(shortcut.Key, shortcut.Action)).Select(shortcut => shortcut.Label).ToArray();
+        return unavailable.Length == 0 ? "" : $"快捷键未生效：{string.Join("、", unavailable)}。可在设置中修改。";
+    }
+
+    private void RefreshShortcutTooltips()
+    {
+        ScreenshotButton.ToolTip = IsRegistered(_settings.ScreenshotHotkey, HotkeyAction.Screenshot)
+            ? $"框选截图（{_settings.ScreenshotHotkey}）" : "框选截图";
+        TranslationButton.ToolTip = IsRegistered(_settings.TranslationHotkey, HotkeyAction.Translate)
+            ? $"翻译已复制的英文（{_settings.TranslationHotkey}）" : "翻译已复制的英文";
+    }
+
+    private void Screenshot_Click(object sender, RoutedEventArgs e) => TakeScreenshot();
+
+    private async void TakeScreenshot()
+    {
+        if (_isTakingScreenshot)
+        {
+            return;
+        }
+
+        var wasVisible = IsVisible;
+        var wasActive = IsActive;
         var screenBounds = Forms.Screen.FromPoint(Forms.Cursor.Position).Bounds;
-        BitmapSource? screenshot = null;
         string? resultStatus = null;
         Exception? failure = null;
 
-        _idleFadeTimer.Stop();
-        Hide();
-
+        _isTakingScreenshot = true;
         try
         {
+            _idleFadeTimer.Stop();
+            Hide();
             await Task.Delay(180);
-            screenshot = ScreenshotWindow.CaptureScreen(screenBounds);
+            var screenshot = ScreenshotWindow.CaptureScreen(screenBounds);
             var selector = new ScreenshotWindow(screenshot, screenBounds);
 
             if (selector.ShowDialog() == true && selector.SelectedImage is not null)
@@ -627,11 +769,17 @@ public partial class MainWindow : Window
         }
         finally
         {
-            screenshot = null;
-            Show();
-            WindowState = WindowState.Normal;
-            Activate();
-            ApplyWindowBehavior(IsMouseOver);
+            _isTakingScreenshot = false;
+            if (wasVisible)
+            {
+                Show();
+                if (wasActive)
+                {
+                    Activate();
+                }
+
+                ApplyWindowBehavior(IsMouseOver);
+            }
         }
 
         if (failure is not null)
@@ -890,29 +1038,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_initializingSettings || ModeBox.SelectedIndex < 0)
-        {
-            return;
-        }
-
-        SetWindowMode((WindowMode)ModeBox.SelectedIndex);
-    }
-
-    private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_initializingSettings)
-        {
-            return;
-        }
-
-        _settings.IdleOpacity = OpacitySlider.Value / 100;
-        UpdateOpacityLabel();
-        ApplyWindowBehavior(IsMouseOver);
-        ScheduleSettingsSave();
-    }
-
     private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         if (_settings.Mode != WindowMode.Floating)
@@ -933,43 +1058,24 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ThemeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_initializingSettings || ThemeBox.SelectedIndex < 0) return;
-        _initializingSettings = true;
-        try
-        {
-            AppThemeManager.SaveAndApply(System.Windows.Application.Current.Resources,
-                _settingsStore, _settings, (AppTheme)ThemeBox.SelectedIndex);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            ThemeBox.SelectedIndex = (int)_settings.Theme;
-            SetStatus($"主题保存失败：{ex.Message}");
-        }
-        finally { _initializingSettings = false; }
-    }
-
     private void SetWindowMode(WindowMode mode)
     {
         _settings.Mode = mode;
-        _edgeDock.SetEnabled(mode == WindowMode.Floating);
-        if (ModeBox.SelectedIndex != (int)mode)
-        {
-            _initializingSettings = true;
-            ModeBox.SelectedIndex = (int)mode;
-            _initializingSettings = false;
-        }
-
-        _idleFadeTimer.Stop();
-        ApplyWindowBehavior(IsMouseOver);
+        UpdateWindowMode();
         ScheduleSettingsSave();
         SetStatus(mode switch
         {
             WindowMode.Normal => "已切换到普通模式",
             WindowMode.Floating => "已切换到悬浮模式",
-            _ => "已开启鼠标穿透，按 Ctrl+Alt+T 恢复"
+            _ => "已开启鼠标穿透，可从托盘恢复操作"
         });
+    }
+
+    private void UpdateWindowMode()
+    {
+        _edgeDock.SetEnabled(_settings.Mode == WindowMode.Floating);
+        _idleFadeTimer.Stop();
+        ApplyWindowBehavior(IsMouseOver);
     }
 
     private void ToggleClickThroughMode() => SetWindowMode(
@@ -991,13 +1097,9 @@ public partial class MainWindow : Window
 
     private void ApplyWindowBehavior(bool pointerInside)
     {
-        OpacitySlider.IsEnabled = _settings.Mode != WindowMode.Normal;
         _windowBehavior.Apply(_settings.Mode, _settings.IdleOpacity,
             pointerInside || _edgeDock.IsDocked || _edgeDock.IsAnimating);
     }
-
-    private void UpdateOpacityLabel() =>
-        OpacityValueText.Text = $"{Math.Round(OpacitySlider.Value):0}%";
 
     private void ScheduleSettingsSave()
     {
@@ -1063,9 +1165,10 @@ public partial class MainWindow : Window
         if (_source is not null)
         {
             var handle = new WindowInteropHelper(this).Handle;
-            UnregisterHotKey(handle, VisibilityHotkeyId);
-            UnregisterHotKey(handle, ClickThroughHotkeyId);
-            UnregisterHotKey(handle, TranslationHotkeyId);
+            foreach (var (id, _) in _registeredHotkeys.Values)
+            {
+                UnregisterHotKey(handle, id);
+            }
             _source.RemoveHook(WindowProc);
         }
 
